@@ -33,6 +33,13 @@ AGENT_NAME = _str(os.getenv("AGENT_NAME"), "DevAgent")
 # ngrok, Cloudflare Tunnel, or reverse SSH (e.g. ssh -R 4000:localhost:4000 user@vps).
 LAPTOP_LISTENER_URL = os.getenv("LAPTOP_LISTENER_URL", "http://localhost:4000")
 
+# Jira REST API (direct fallback when listener is offline)
+JIRA_CLOUD_ID = _str(os.getenv("JIRA_CLOUD_ID"), "41afebc2-714c-4c61-92c7-09ed9fc48daf")
+JIRA_ACCOUNT_ID = _str(os.getenv("JIRA_ACCOUNT_ID"), "712020:e2175c6b-ac7b-4ed7-a572-2b03304bd9a7")
+JIRA_API_EMAIL = _str(os.getenv("JIRA_API_EMAIL"), "nabil@diesta.co.uk")
+JIRA_API_TOKEN = _str(os.getenv("JIRA_API_TOKEN"), "")
+JIRA_BASE_URL = f"https://api.atlassian.com/ex/jira/{JIRA_CLOUD_ID}/rest/api/3"
+
 # Paths (defaults relative to project root)
 _PROJECT_ROOT = Path(__file__).resolve().parent
 CHROMA_PERSIST_PATH = _path(os.getenv("CHROMA_PERSIST_PATH"), _PROJECT_ROOT / "data" / "chroma")

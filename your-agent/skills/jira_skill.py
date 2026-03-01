@@ -1,6 +1,5 @@
 """
-Jira skill: calls niesta-listener Jira endpoints and returns formatted summaries for the agent.
-Requires LAPTOP_LISTENER_URL reachable from VPS (e.g. ngrok or reverse SSH tunnel).
+Jira skill: tries niesta-listener first (10s timeout), falls back to direct Jira API when listener is offline.
 """
 from __future__ import annotations
 
@@ -13,9 +12,15 @@ from openai import OpenAI
 
 from config import LAPTOP_LISTENER_URL, OPENAI_API_KEY
 
+from skills.jira_direct import (
+    direct_fetch_sprint,
+    direct_fetch_ticket,
+    direct_run_jql,
+)
+
 logger = logging.getLogger(__name__)
 
-LISTENER_TIMEOUT = 35.0
+LISTENER_TIMEOUT = 10.0
 UNREACHABLE_MSG = "Laptop listener is offline — is your MacBook running?"
 
 JQL_SYSTEM = """You are a JQL translator. Convert the user's natural language question into a valid Jira JQL query.
@@ -30,60 +35,6 @@ Context:
 - The backlog is: items not in any open sprint, or with sprint IS EMPTY
 
 Respond with ONLY the JQL string. No explanation, no markdown, no backticks. Just the JQL."""
-
-
-async def _get(url: str) -> Optional[Dict[str, Any]]:
-    """GET JSON from listener; None if unreachable or error."""
-    try:
-        async with httpx.AsyncClient(timeout=LISTENER_TIMEOUT) as client:
-            r = await client.get(url)
-            r.raise_for_status()
-            return r.json()
-    except httpx.ConnectError:
-        logger.warning("Listener unreachable: %s", url)
-        return None
-    except httpx.TimeoutException:
-        logger.warning("Listener timeout: %s", url)
-        return None
-    except httpx.HTTPStatusError as e:
-        try:
-            body = e.response.json()
-            if isinstance(body.get("detail"), str):
-                return {"detail": body["detail"]}
-        except Exception:
-            pass
-        return None
-    except Exception as e:
-        logger.warning("Listener request failed: %s", e)
-        return None
-
-
-async def _post(url: str, json_body: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """POST JSON to listener; returns response JSON or None on error."""
-    try:
-        async with httpx.AsyncClient(timeout=LISTENER_TIMEOUT) as client:
-            r = await client.post(url, json=json_body)
-            data = r.json()
-            if r.status_code >= 400:
-                return {"detail": data.get("detail") if isinstance(data.get("detail"), str) else r.text}
-            return data
-    except httpx.ConnectError:
-        logger.warning("Listener unreachable: %s", url)
-        return None
-    except httpx.TimeoutException:
-        logger.warning("Listener timeout: %s", url)
-        return None
-    except httpx.HTTPStatusError as e:
-        try:
-            body = e.response.json()
-            if isinstance(body.get("detail"), str):
-                return {"detail": body["detail"]}
-        except Exception:
-            pass
-        return None
-    except Exception as e:
-        logger.warning("Listener POST failed: %s", e)
-        return None
 
 
 def _format_query_results(tickets: List[dict]) -> str:
@@ -156,12 +107,49 @@ def _format_status(data: dict) -> str:
     return "\n".join(lines)
 
 
+def _status_from_sprint_tickets(tickets: List[dict]) -> dict:
+    """Compute status buckets from sprint ticket list (for direct fallback)."""
+    to_do = in_progress = in_review = in_qa = done = 0
+    in_progress_keys: List[str] = []
+    for t in tickets:
+        name = (t.get("status") or "").strip()
+        if not name:
+            continue
+        if name in ("To Do", "To-Do"):
+            to_do += 1
+        elif name == "In Progress":
+            in_progress += 1
+            if t.get("key"):
+                in_progress_keys.append(t["key"])
+        elif name == "In Review":
+            in_review += 1
+        elif name == "In QA":
+            in_qa += 1
+        elif name == "Done":
+            done += 1
+    return {
+        "to_do": to_do,
+        "in_progress": in_progress,
+        "in_review": in_review,
+        "in_qa": in_qa,
+        "done": done,
+        "in_progress_keys": in_progress_keys,
+    }
+
+
 async def run_sprint(**kwargs: Any) -> str:
-    """[SKILL: jira_sprint] — Fetch my sprint tickets from listener."""
+    """[SKILL: jira_sprint] — Fetch my sprint tickets (listener first, then direct API)."""
     base = LAPTOP_LISTENER_URL.rstrip("/")
-    data = await _get(f"{base}/jira/my-sprint")
-    if data is None:
-        return UNREACHABLE_MSG
+    try:
+        async with httpx.AsyncClient(timeout=LISTENER_TIMEOUT) as client:
+            r = await client.get(f"{base}/jira/my-sprint")
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        ok, tickets, err = await direct_fetch_sprint()
+        if not ok:
+            return err or "Failed to fetch sprint."
+        return _format_sprint(tickets or [])
     if "detail" in data and isinstance(data["detail"], str):
         return data["detail"]
     tickets = data.get("tickets") or data.get("data") or data
@@ -171,36 +159,57 @@ async def run_sprint(**kwargs: Any) -> str:
 
 
 async def run_ticket(key: Optional[str] = None, **kwargs: Any) -> str:
-    """[SKILL: jira_ticket | key: DD-5771] — Fetch one ticket from listener."""
+    """[SKILL: jira_ticket | key: DD-5771] — Fetch one ticket (listener first, then direct API)."""
     ticket_key = (key or kwargs.get("key") or "").strip().upper()
     if not ticket_key:
         return "Please specify a ticket key, e.g. [SKILL: jira_ticket | key: DD-5771]"
     base = LAPTOP_LISTENER_URL.rstrip("/")
-    data = await _get(f"{base}/jira/ticket/{ticket_key}")
-    if data is None:
-        return UNREACHABLE_MSG
+    try:
+        async with httpx.AsyncClient(timeout=LISTENER_TIMEOUT) as client:
+            r = await client.get(f"{base}/jira/ticket/{ticket_key}")
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        ok, data, err = await direct_fetch_ticket(ticket_key)
+        if not ok:
+            return err or "Failed to fetch ticket."
+        return _format_ticket(data or {})
     if "detail" in data and isinstance(data["detail"], str):
         return data["detail"]
     return _format_ticket(data)
 
 
 async def run_status(**kwargs: Any) -> str:
-    """[SKILL: jira_status] — Sprint status summary from listener."""
+    """[SKILL: jira_status] — Sprint status summary (listener first, then direct API)."""
     base = LAPTOP_LISTENER_URL.rstrip("/")
-    data = await _get(f"{base}/jira/my-status")
-    if data is None:
-        return UNREACHABLE_MSG
+    try:
+        async with httpx.AsyncClient(timeout=LISTENER_TIMEOUT) as client:
+            r = await client.get(f"{base}/jira/my-status")
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        ok, tickets, err = await direct_fetch_sprint()
+        if not ok:
+            return err or "Failed to fetch sprint status."
+        data = _status_from_sprint_tickets(tickets or [])
     if "detail" in data and isinstance(data["detail"], str):
         return data["detail"]
     return _format_status(data)
 
 
 async def run_bugs(**kwargs: Any) -> str:
-    """[SKILL: jira_bugs] — Fetch only bug tickets assigned to me in the current sprint."""
+    """[SKILL: jira_bugs] — Fetch only bug tickets in current sprint (listener first, then direct API)."""
     base = LAPTOP_LISTENER_URL.rstrip("/")
-    data = await _get(f"{base}/jira/my-sprint")
-    if data is None:
-        return UNREACHABLE_MSG
+    try:
+        async with httpx.AsyncClient(timeout=LISTENER_TIMEOUT) as client:
+            r = await client.get(f"{base}/jira/my-sprint")
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        ok, tickets, err = await direct_fetch_sprint()
+        if not ok:
+            return err or "Failed to fetch sprint."
+        data = {"tickets": tickets or []}
     if "detail" in data and isinstance(data["detail"], str):
         return data["detail"]
     tickets = data.get("tickets") or data.get("data") or data
@@ -222,7 +231,7 @@ async def run_bugs(**kwargs: Any) -> str:
 
 
 async def run_query(question: Optional[str] = None, **kwargs: Any) -> str:
-    """[SKILL: jira_query | question: ...] — Ask any Jira question in natural language; translate to JQL and fetch results."""
+    """[SKILL: jira_query | question: ...] — Ask any Jira question; translate to JQL (listener first, then direct API)."""
     q = (question or kwargs.get("question") or "").strip()
     if not q:
         return "Please provide a question, e.g. [SKILL: jira_query | question: what bugs are in the backlog?]"
@@ -253,9 +262,16 @@ async def run_query(question: Optional[str] = None, **kwargs: Any) -> str:
         "fields": ["key", "summary", "status", "priority", "assignee", "issuetype"],
         "max_results": 50,
     }
-    data = await _post(f"{base}/jira/query", payload)
-    if data is None:
-        return UNREACHABLE_MSG
+    try:
+        async with httpx.AsyncClient(timeout=LISTENER_TIMEOUT) as client:
+            r = await client.post(f"{base}/jira/query", json=payload)
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        ok, tickets, err = await direct_run_jql(jql, payload["fields"], payload["max_results"])
+        if not ok:
+            return err or "JQL query failed."
+        return _format_query_results(tickets or [])
     if "detail" in data and isinstance(data["detail"], str):
         return data["detail"]
     tickets = data.get("tickets") or data.get("data") or data
