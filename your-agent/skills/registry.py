@@ -21,6 +21,7 @@ _REGISTRY: dict[str, SkillFn] = {
     "jira_sprint": jira_skill.run_sprint,
     "jira_ticket": jira_skill.run_ticket,
     "jira_status": jira_skill.run_status,
+    "jira_bugs": jira_skill.run_bugs,
 }
 
 

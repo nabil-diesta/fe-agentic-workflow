@@ -133,3 +133,29 @@ async def run_status(**kwargs: Any) -> str:
     if "detail" in data and isinstance(data["detail"], str):
         return data["detail"]
     return _format_status(data)
+
+
+async def run_bugs(**kwargs: Any) -> str:
+    """[SKILL: jira_bugs] — Fetch only bug tickets assigned to me in the current sprint."""
+    base = LAPTOP_LISTENER_URL.rstrip("/")
+    data = await _get(f"{base}/jira/my-sprint")
+    if data is None:
+        return UNREACHABLE_MSG
+    if "detail" in data and isinstance(data["detail"], str):
+        return data["detail"]
+    tickets = data.get("tickets") or data.get("data") or data
+    if not isinstance(tickets, list):
+        return "Unexpected response from listener."
+    bugs = [t for t in tickets if (t.get("type") or "").lower() == "bug"]
+    if not bugs:
+        return "No bugs assigned to you in the current sprint."
+    groups: Dict[str, list] = {}
+    for t in bugs:
+        status = t.get("status") or "Unknown"
+        groups.setdefault(status, []).append(t)
+    lines = [f"Bugs: {len(bugs)} total\n"]
+    for status, items in groups.items():
+        lines.append(f"\n{status} ({len(items)}):")
+        for t in items:
+            lines.append(f"  {t.get('key', '?')} — {t.get('summary', '')} [{t.get('priority', '')}]")
+    return "\n".join(lines)
