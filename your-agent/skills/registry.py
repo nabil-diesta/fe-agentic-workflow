@@ -5,9 +5,10 @@ import logging
 import re
 from typing import Any, Callable, Awaitable
 
-from . import daily_brief
 from . import codex_monitor
+from . import daily_brief
 from . import example_tool as example_tool_skill
+from . import jira_skill
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ _REGISTRY: dict[str, SkillFn] = {
     "daily_brief": daily_brief.run,
     "codex_monitor": codex_monitor.run,
     "example_tool": example_tool_skill.run,
+    "jira_sprint": jira_skill.run_sprint,
+    "jira_ticket": jira_skill.run_ticket,
+    "jira_status": jira_skill.run_status,
 }
 
 

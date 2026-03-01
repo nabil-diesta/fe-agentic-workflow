@@ -29,6 +29,10 @@ TELEGRAM_BOT_TOKEN = _str(os.getenv("TELEGRAM_BOT_TOKEN"))
 # Agent
 AGENT_NAME = _str(os.getenv("AGENT_NAME"), "DevAgent")
 
+# Laptop listener (niesta-listener). Must be reachable from VPS: expose port 4000 via
+# ngrok, Cloudflare Tunnel, or reverse SSH (e.g. ssh -R 4000:localhost:4000 user@vps).
+LAPTOP_LISTENER_URL = os.getenv("LAPTOP_LISTENER_URL", "http://localhost:4000")
+
 # Paths (defaults relative to project root)
 _PROJECT_ROOT = Path(__file__).resolve().parent
 CHROMA_PERSIST_PATH = _path(os.getenv("CHROMA_PERSIST_PATH"), _PROJECT_ROOT / "data" / "chroma")

@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from config import LISTENER_PORT
 from executor import get_running_tasks, run_codex_task
+from jira import fetch_my_sprint, fetch_my_status, fetch_ticket
 from sessions import get_active_sessions, get_session_by_id, get_sessions
 
 logging.basicConfig(
@@ -106,6 +107,51 @@ async def running_tasks() -> List[dict]:
         return get_running_tasks()
     except Exception as e:
         logger.exception("GET /running-tasks: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/jira/my-sprint")
+async def jira_my_sprint() -> dict:
+    """Tickets in current active sprint for project DD assigned to nabil@diesta.co.uk."""
+    try:
+        ok, data, err = fetch_my_sprint()
+        if not ok:
+            raise HTTPException(status_code=502, detail=err or "Jira request failed")
+        return {"tickets": data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("GET /jira/my-sprint: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/jira/ticket/{ticket_key}")
+async def jira_ticket(ticket_key: str) -> dict:
+    """Full details for one ticket (e.g. DD-5771)."""
+    try:
+        ok, data, err = fetch_ticket(ticket_key)
+        if not ok:
+            raise HTTPException(status_code=502, detail=err or "Jira request failed")
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("GET /jira/ticket/%s: %s", ticket_key, e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/jira/my-status")
+async def jira_my_status() -> dict:
+    """Counts per status (To Do, In Progress, In Review, Done) + In Progress ticket keys."""
+    try:
+        ok, data, err = fetch_my_status()
+        if not ok:
+            raise HTTPException(status_code=502, detail=err or "Jira request failed")
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("GET /jira/my-status: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

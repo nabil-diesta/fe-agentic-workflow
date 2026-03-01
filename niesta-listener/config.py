@@ -24,3 +24,7 @@ NIESTA_API_URL = _str(os.getenv("NIESTA_API_URL"), "http://72.62.7.232:8000")
 LISTENER_PORT = int(os.getenv("LISTENER_PORT", "4000"))
 
 SESSIONS_CACHE_TTL_SECONDS = 30
+
+# Jira (Codex + Atlassian MCP)
+JIRA_PROJECT_KEY = _str(os.getenv("JIRA_PROJECT_KEY"), "DD")
+JIRA_USER_EMAIL = _str(os.getenv("JIRA_USER_EMAIL"), "nabil@diesta.co.uk")
