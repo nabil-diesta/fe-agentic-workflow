@@ -1,0 +1,19 @@
+<div class="settings">
+  <h1>Settings</h1>
+  <div class="form">
+    <label>
+      <span>Listener URL</span>
+      <input type="text" [value]="listenerUrl()" (input)="listenerUrl.set($any($event.target).value)" placeholder="http://localhost:4000" />
+    </label>
+    <label>
+      <span>Niesta API URL</span>
+      <input type="text" [value]="niestaUrl()" (input)="niestaUrl.set($any($event.target).value)" placeholder="http://72.62.7.232:8000" />
+    </label>
+    <label class="row">
+      <span>Dark mode</span>
+      <input type="checkbox" [checked]="isDark()" (change)="setDark($any($event.target).checked)" />
+    </label>
+    <button type="button" class="btn-save" (click)="save()">Save</button>
+  </div>
+  <p class="hint">URLs and theme are saved to localStorage.</p>
+</div>

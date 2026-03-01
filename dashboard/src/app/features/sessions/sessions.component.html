@@ -1,0 +1,39 @@
+<div class="sessions">
+  <div class="sessions-header">
+    <h1>Codex Sessions</h1>
+    <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">Refresh</button>
+  </div>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (loading() && sessions().length === 0) {
+    <p class="loading">Loading sessions…</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="sessions-table">
+        <thead>
+          <tr>
+            <th>Session ID</th>
+            <th>Timestamp</th>
+            <th>CWD</th>
+            <th>Model</th>
+            <th>Status</th>
+            <th>Last activity</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of sessions(); track s.session_id) {
+            <tr>
+              <td class="mono">{{ truncateId(s.session_id) }}</td>
+              <td>{{ s.timestamp ?? '—' }}</td>
+              <td class="cwd">{{ s.cwd ?? '—' }}</td>
+              <td>{{ s.model ?? '—' }}</td>
+              <td><span class="badge" [class]="statusClass(s.status)">{{ s.status ?? '—' }}</span></td>
+              <td>{{ formatTime(s.last_activity_ts ?? s.last_activity) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

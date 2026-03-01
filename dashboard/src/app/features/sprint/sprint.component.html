@@ -1,0 +1,82 @@
+<div class="sprint">
+  <div class="sprint-header">
+    <h1>Sprint Board</h1>
+    <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">Refresh</button>
+  </div>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (loading() && tickets().length === 0) {
+    <p class="loading">Loading sprint…</p>
+  } @else {
+    <div class="kanban">
+      @for (col of columnOrder; track col) {
+        @let items = byStatus()[col];
+        @if (items?.length) {
+          <div class="column">
+            <h3 class="column-title">{{ col }} ({{ items.length }})</h3>
+            <div class="cards">
+              @for (t of items; track t.key) {
+                <button type="button" class="card" (click)="openDetail(t.key)">
+                  <span class="card-key">{{ t.key }}</span>
+                  <span class="card-summary">{{ t.summary || '—' }}</span>
+                  <div class="badges">
+                    @if (t.priority) {
+                      <span class="badge" [class]="'badge ' + priorityClass(t.priority)">{{ t.priority }}</span>
+                    }
+                    @if (t.type) {
+                      <span class="badge" [class]="'badge ' + typeClass(t.type)">{{ t.type }}</span>
+                    }
+                  </div>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  @if (detailTicket() || detailLoading()) {
+    <div class="overlay" (click)="closeDetail()"></div>
+    <aside class="detail-panel">
+      <div class="detail-header">
+        <h2>Ticket</h2>
+        <button type="button" class="btn-close" (click)="closeDetail()">×</button>
+      </div>
+      @if (detailLoading()) {
+        <p class="loading">Loading…</p>
+      } @else if (detailTicket(); as t) {
+        <div class="detail-body">
+          <p class="detail-key">{{ t.key }}</p>
+          <p class="detail-summary">{{ t.summary }}</p>
+          <p class="detail-meta">Status: {{ t.status }} · Priority: {{ t.priority }} · Assignee: {{ t.assignee ?? '—' }}</p>
+          @if (t.description) {
+            <div class="detail-desc">
+              <strong>Description</strong>
+              <p>{{ t.description }}</p>
+            </div>
+          }
+          @if (t.subtasks?.length) {
+            <div class="detail-subtasks">
+              <strong>Subtasks</strong>
+              <ul>
+                @for (s of t.subtasks; track s.key) {
+                  <li>{{ s.key }}: {{ s.summary }}</li>
+                }
+              </ul>
+            </div>
+          }
+          @if (t.comments?.length) {
+            <div class="detail-comments">
+              <strong>Recent comments</strong>
+              @for (c of t.comments; track c.body) {
+                <p><em>{{ c.author }}</em>: {{ c.body }}</p>
+              }
+            </div>
+          }
+        </div>
+      }
+    </aside>
+  }
+</div>

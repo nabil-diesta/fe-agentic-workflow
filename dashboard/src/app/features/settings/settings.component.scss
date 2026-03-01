@@ -1,0 +1,60 @@
+.settings h1 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+}
+
+.form {
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  &.row {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  span { font-size: 0.9rem; color: var(--text-secondary); }
+}
+
+.form input[type='text'] {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+}
+
+.form input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+}
+
+.btn-save {
+  align-self: flex-start;
+  padding: 0.6rem 1.25rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 500;
+  &:hover { background: var(--accent-hover); }
+}
+
+.hint {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}

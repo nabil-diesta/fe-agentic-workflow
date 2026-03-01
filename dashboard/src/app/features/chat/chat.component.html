@@ -1,0 +1,35 @@
+<div class="chat">
+  <div class="chat-messages" id="chat-messages">
+    @for (msg of messages(); track $index) {
+      <div class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+        <div class="bubble">
+          @if (msg.role === 'user') {
+            {{ msg.content }}
+          } @else {
+            <div class="markdown" [innerHTML]="msg.content | markdown"></div>
+          }
+        </div>
+      </div>
+    }
+    @if (loading()) {
+      <div class="message assistant">
+        <div class="bubble typing">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+      </div>
+    }
+  </div>
+  <form class="chat-form" (submit)="$event.preventDefault(); send()">
+    <textarea
+      #inputEl
+      class="chat-input"
+      [value]="inputValue()"
+      (input)="inputValue.set($any($event.target).value)"
+      (keydown)="onKeydown($event)"
+      placeholder="Message Niesta…"
+      rows="1"
+      [disabled]="loading()"
+    ></textarea>
+    <button type="submit" class="btn-send" [disabled]="loading() || !inputValue().trim()">Send</button>
+  </form>
+</div>
