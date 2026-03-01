@@ -19,7 +19,7 @@ def _run_codex(prompt: str) -> Tuple[bool, Any, str]:
     Run codex with the given prompt. Returns (success, parsed_data_or_none, error_message).
     Never raises; logs and returns error tuple on failure or timeout.
     """
-    cmd = ["codex", "exec", prompt]
+    cmd = ["codex", "exec", prompt, "--skip-git-repo-check"]
     cwd = str(WORK_REPO_PATH)
     try:
         result = subprocess.run(
