@@ -1,173 +1,230 @@
 """
-Jira data via Codex CLI + Atlassian MCP. Subprocess with 30s timeout; parse stdout for JSON.
+Jira data via direct REST API. Async httpx with Basic auth; 60s cache for sprint.
 """
-import json
+import base64
 import logging
-import re
-import subprocess
-from typing import Any, List, Optional, Tuple
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
-from config import JIRA_PROJECT_KEY, JIRA_USER_EMAIL, WORK_REPO_PATH
+import httpx
+
+from config import (
+    JIRA_ACCOUNT_ID,
+    JIRA_API_EMAIL,
+    JIRA_API_TOKEN,
+    JIRA_BASE_URL,
+)
 
 logger = logging.getLogger(__name__)
 
-CODEX_TIMEOUT_SECONDS = 120
+HTTP_TIMEOUT = 30.0
+SPRINT_CACHE_TTL = 60
+_sprint_cache: Optional[Tuple[float, List[dict]]] = None
 
 
-def _run_codex(prompt: str) -> Tuple[bool, Any, str]:
+def _auth_header() -> str:
+    raw = f"{JIRA_API_EMAIL}:{JIRA_API_TOKEN}"
+    return base64.b64encode(raw.encode()).decode()
+
+
+def _check_token() -> Optional[str]:
+    if not JIRA_API_TOKEN:
+        return "JIRA_API_TOKEN is not set. Add it to .env (see .env.example)."
+    return None
+
+
+def _parse_issue(issue: Dict[str, Any]) -> dict:
+    """Map Jira issue to our ticket shape."""
+    fields = issue.get("fields") or {}
+    status = fields.get("status")
+    priority = fields.get("priority")
+    assignee = fields.get("assignee")
+    it = fields.get("issuetype")
+    return {
+        "key": issue.get("key"),
+        "summary": (fields.get("summary") or "").strip(),
+        "status": status.get("name") if isinstance(status, dict) else None,
+        "priority": priority.get("name") if isinstance(priority, dict) else None,
+        "assignee": assignee.get("displayName") if isinstance(assignee, dict) else None,
+        "story_points": fields.get("customfield_10016"),
+        "type": it.get("name") if isinstance(it, dict) else None,
+    }
+
+
+async def fetch_my_sprint() -> Tuple[bool, Optional[List[dict]], str]:
     """
-    Run codex with the given prompt. Returns (success, parsed_data_or_none, error_message).
-    Never raises; logs and returns error tuple on failure or timeout.
+    Fetch all tickets in current active sprint for DD assigned to JIRA_ACCOUNT_ID.
+    Returns (success, list of tickets, error_message). Cached 60s.
     """
-    cmd = ["codex", "exec", prompt, "--skip-git-repo-check"]
-    cwd = str(WORK_REPO_PATH)
+    err = _check_token()
+    if err:
+        return False, None, err
+
+    global _sprint_cache
+    now = time.time()
+    if _sprint_cache is not None and (now - _sprint_cache[0]) < SPRINT_CACHE_TTL:
+        return True, _sprint_cache[1], ""
+
+    jql = f'project = DD AND assignee = "{JIRA_ACCOUNT_ID}" AND sprint in openSprints() ORDER BY Rank ASC'
+    fields = "key,summary,status,priority,assignee,customfield_10016,issuetype"
+    url = f"{JIRA_BASE_URL}/search/jql"
+    params = {"jql": jql, "fields": fields, "maxResults": 100}
+
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=CODEX_TIMEOUT_SECONDS,
-            stdin=subprocess.DEVNULL
-        )
-        stdout = (result.stdout or "").strip()
-        stderr = (result.stderr or "").strip()
-        if result.returncode != 0:
-            msg = stderr or stdout or f"Codex exited with {result.returncode}"
-            logger.warning("Codex failed: %s", msg)
-            return False, None, msg
-        data = _extract_json(stdout)
-        if data is None:
-            return False, None, "Could not parse JSON from Codex output. MCP may not be connected or response format changed."
-        return True, data, ""
-    except subprocess.TimeoutExpired:
-        logger.warning("Codex timed out after %ss", CODEX_TIMEOUT_SECONDS)
-        return False, None, f"Codex timed out after {CODEX_TIMEOUT_SECONDS}s. Try again or check MCP connection."
-    except FileNotFoundError:
-        logger.warning("codex CLI not found")
-        return False, None, "Codex CLI not found. Is Codex installed and on PATH?"
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+            r = await client.get(
+                url,
+                params=params,
+                headers={"Authorization": f"Basic {_auth_header()}", "Accept": "application/json"},
+            )
+            r.raise_for_status()
+            data = r.json()
+    except httpx.HTTPStatusError as e:
+        msg = e.response.text if e.response else str(e)
+        logger.warning("Jira search failed: %s", msg)
+        return False, None, msg or f"HTTP {e.response.status_code}"
+    except httpx.RequestError as e:
+        logger.warning("Jira request error: %s", e)
+        return False, None, str(e)
     except Exception as e:
-        logger.exception("Codex run error: %s", e)
+        logger.exception("Jira fetch error: %s", e)
         return False, None, str(e)
 
-
-def _extract_json(text: str) -> Optional[Any]:
-    """Try to extract JSON object or array from stdout (handles markdown code blocks)."""
-    if not text:
-        return None
-    # Try markdown code block first
-    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    if match:
-        try:
-            return json.loads(match.group(1).strip())
-        except json.JSONDecodeError:
-            pass
-    # Try first [ or { to last ] or }
-    for start_char, end_char in [("[", "]"), ("{", "}")]:
-        start = text.find(start_char)
-        if start == -1:
-            continue
-        depth = 0
-        for i in range(start, len(text)):
-            if text[i] == start_char:
-                depth += 1
-            elif text[i] == end_char:
-                depth -= 1
-                if depth == 0:
-                    try:
-                        return json.loads(text[start : i + 1])
-                    except json.JSONDecodeError:
-                        break
-        if depth != 0:
-            continue
-    try:
-        return json.loads(text.strip())
-    except json.JSONDecodeError:
-        return None
-
-
-def fetch_my_sprint() -> Tuple[bool, Optional[List[dict]], str]:
-    """
-    Fetch all tickets in current active sprint for project DD assigned to JIRA_USER_EMAIL.
-    Returns (success, list of {key, summary, status, priority, story_points, assignee}, error_message).
-    """
-    prompt = (
-        f'Use the Atlassian MCP to fetch all issues in the current active sprint for project {JIRA_PROJECT_KEY} '
-        f'assigned to {JIRA_USER_EMAIL}. Return only a valid JSON array of objects, each with keys: '
-        'key, summary, status, priority, story_points, assignee. No other text.'
-    )
-    ok, data, err = _run_codex(prompt)
-    if not ok:
-        return False, None, err
-    if not isinstance(data, list):
-        return False, None, "Expected JSON array of tickets."
-    # Normalize keys
-    out = []
-    for t in data:
-        if not isinstance(t, dict):
-            continue
-        out.append({
-            "key": t.get("key"),
-            "summary": t.get("summary"),
-            "status": t.get("status"),
-            "priority": t.get("priority"),
-            "story_points": t.get("story_points"),
-            "assignee": t.get("assignee"),
-        })
+    issues = data.get("issues") or []
+    out = [_parse_issue(i) for i in issues]
+    _sprint_cache = (now, out)
     return True, out, ""
 
 
-def fetch_ticket(ticket_key: str) -> Tuple[bool, Optional[dict], str]:
+async def fetch_ticket(ticket_key: str) -> Tuple[bool, Optional[dict], str]:
     """
     Fetch full details for one ticket. Returns (success, ticket_dict, error_message).
-    Ticket dict: key, summary, description, status, priority, story_points, assignee, subtasks, comments (last 5).
+    Includes description, subtasks, last 5 comments.
     """
-    prompt = (
-        f'Use the Atlassian MCP to fetch full details for Jira ticket {ticket_key}. '
-        'Return only a valid JSON object with keys: key, summary, description, status, priority, '
-        'story_points, assignee, subtasks (array of objects with key and summary), '
-        'comments (array of last 5, each with author and body). No other text.'
-    )
-    ok, data, err = _run_codex(prompt)
-    if not ok:
+    err = _check_token()
+    if err:
         return False, None, err
-    if not isinstance(data, dict):
-        return False, None, "Expected JSON object for ticket."
+
+    fields = "key,summary,description,status,priority,assignee,subtasks,comment,customfield_10016,issuetype"
+    url = f"{JIRA_BASE_URL}/issue/{ticket_key}"
+    params = {"fields": fields}
+
+    try:
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+            r = await client.get(
+                url,
+                params=params,
+                headers={"Authorization": f"Basic {_auth_header()}", "Accept": "application/json"},
+            )
+            r.raise_for_status()
+            issue = r.json()
+    except httpx.HTTPStatusError as e:
+        msg = e.response.text if e.response else str(e)
+        logger.warning("Jira issue %s failed: %s", ticket_key, msg)
+        return False, None, msg or f"HTTP {e.response.status_code}"
+    except httpx.RequestError as e:
+        logger.warning("Jira request error: %s", e)
+        return False, None, str(e)
+    except Exception as e:
+        logger.exception("Jira fetch ticket error: %s", e)
+        return False, None, str(e)
+
+    fields_data = issue.get("fields") or {}
+    status = fields_data.get("status")
+    priority = fields_data.get("priority")
+    assignee = fields_data.get("assignee")
+    it = fields_data.get("issuetype")
+
+    # Description may be ADF (Atlassian Document Format); use plain if present
+    desc = fields_data.get("description")
+    if isinstance(desc, dict):
+        # ADF: try to get plain text from content
+        plain_parts = []
+        for block in desc.get("content") or []:
+            if block.get("type") == "paragraph":
+                for c in block.get("content") or []:
+                    if c.get("type") == "text":
+                        plain_parts.append(c.get("text") or "")
+        desc = "\n".join(plain_parts) if plain_parts else ""
+    elif desc is None:
+        desc = ""
+
+    subtasks_raw = fields_data.get("subtasks") or []
+    subtasks = [{"key": s.get("key"), "summary": (s.get("fields") or {}).get("summary")} for s in subtasks_raw]
+
+    def _comment_body(c: Dict[str, Any]) -> str:
+        b = c.get("body")
+        if isinstance(b, dict) and b.get("content"):
+            parts = []
+            for block in b.get("content") or []:
+                if block.get("type") == "paragraph":
+                    for x in block.get("content") or []:
+                        if x.get("type") == "text":
+                            parts.append(x.get("text") or "")
+            return "\n".join(parts)
+        return str(b) if b is not None else ""
+
+    comments_raw = (fields_data.get("comment") or {}).get("comments") or []
+    last_5 = comments_raw[-5:]
+    comments = [
+        {"author": (c.get("author") or {}).get("displayName"), "body": _comment_body(c)}
+        for c in last_5
+    ]
+
     out = {
-        "key": data.get("key"),
-        "summary": data.get("summary"),
-        "description": data.get("description"),
-        "status": data.get("status"),
-        "priority": data.get("priority"),
-        "story_points": data.get("story_points"),
-        "assignee": data.get("assignee"),
-        "subtasks": data.get("subtasks") if isinstance(data.get("subtasks"), list) else [],
-        "comments": data.get("comments") if isinstance(data.get("comments"), list) else [],
+        "key": issue.get("key"),
+        "summary": (fields_data.get("summary") or "").strip(),
+        "description": desc,
+        "status": status.get("name") if isinstance(status, dict) else None,
+        "priority": priority.get("name") if isinstance(priority, dict) else None,
+        "story_points": fields_data.get("customfield_10016"),
+        "assignee": assignee.get("displayName") if isinstance(assignee, dict) else None,
+        "subtasks": subtasks,
+        "comments": comments,
     }
     return True, out, ""
 
 
-def fetch_my_status() -> Tuple[bool, Optional[dict], str]:
+async def fetch_my_status() -> Tuple[bool, Optional[dict], str]:
     """
-    Quick summary: counts per status (To Do, In Progress, In Review, Done) + In Progress ticket keys.
-    Returns (success, {to_do, in_progress, in_review, done, in_progress_keys}, error_message).
+    Counts by status (To Do, In Progress, In Review, In QA, Done) + In Progress keys.
+    Uses fetch_my_sprint() internally (cached).
     """
-    prompt = (
-        f'Use the Atlassian MCP to count issues in the current active sprint for project {JIRA_PROJECT_KEY} '
-        f'assigned to {JIRA_USER_EMAIL} by status. Return only a valid JSON object with keys: '
-        'to_do (number), in_progress (number), in_review (number), done (number), '
-        'in_progress_keys (array of ticket keys, e.g. ["DD-123", "DD-456"]). No other text.'
-    )
-    ok, data, err = _run_codex(prompt)
-    if not ok:
+    ok, tickets, err = await fetch_my_sprint()
+    if not ok or tickets is None:
         return False, None, err
-    if not isinstance(data, dict):
-        return False, None, "Expected JSON object for status."
+
+    to_do = 0
+    in_progress = 0
+    in_review = 0
+    in_qa = 0
+    done = 0
+    in_progress_keys: List[str] = []
+
+    for t in tickets:
+        name = (t.get("status") or "").strip()
+        if not name:
+            continue
+        if name == "To Do" or name == "To-Do":
+            to_do += 1
+        elif name == "In Progress":
+            in_progress += 1
+            k = t.get("key")
+            if k:
+                in_progress_keys.append(k)
+        elif name == "In Review":
+            in_review += 1
+        elif name == "In QA":
+            in_qa += 1
+        elif name == "Done":
+            done += 1
+
     out = {
-        "to_do": data.get("to_do", 0),
-        "in_progress": data.get("in_progress", 0),
-        "in_review": data.get("in_review", 0),
-        "done": data.get("done", 0),
-        "in_progress_keys": data.get("in_progress_keys") if isinstance(data.get("in_progress_keys"), list) else [],
+        "to_do": to_do,
+        "in_progress": in_progress,
+        "in_review": in_review,
+        "in_qa": in_qa,
+        "done": done,
+        "in_progress_keys": in_progress_keys,
     }
     return True, out, ""

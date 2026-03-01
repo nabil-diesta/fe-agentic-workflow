@@ -114,7 +114,7 @@ async def running_tasks() -> List[dict]:
 async def jira_my_sprint() -> dict:
     """Tickets in current active sprint for project DD assigned to nabil@diesta.co.uk."""
     try:
-        ok, data, err = fetch_my_sprint()
+        ok, data, err = await fetch_my_sprint()
         if not ok:
             raise HTTPException(status_code=502, detail=err or "Jira request failed")
         return {"tickets": data}
@@ -129,7 +129,7 @@ async def jira_my_sprint() -> dict:
 async def jira_ticket(ticket_key: str) -> dict:
     """Full details for one ticket (e.g. DD-5771)."""
     try:
-        ok, data, err = fetch_ticket(ticket_key)
+        ok, data, err = await fetch_ticket(ticket_key)
         if not ok:
             raise HTTPException(status_code=502, detail=err or "Jira request failed")
         return data
@@ -142,9 +142,9 @@ async def jira_ticket(ticket_key: str) -> dict:
 
 @app.get("/jira/my-status")
 async def jira_my_status() -> dict:
-    """Counts per status (To Do, In Progress, In Review, Done) + In Progress ticket keys."""
+    """Counts per status (To Do, In Progress, In Review, In QA, Done) + In Progress ticket keys."""
     try:
-        ok, data, err = fetch_my_status()
+        ok, data, err = await fetch_my_status()
         if not ok:
             raise HTTPException(status_code=502, detail=err or "Jira request failed")
         return data
