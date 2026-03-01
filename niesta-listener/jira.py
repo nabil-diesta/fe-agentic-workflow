@@ -19,7 +19,7 @@ def _run_codex(prompt: str) -> Tuple[bool, Any, str]:
     Run codex with the given prompt. Returns (success, parsed_data_or_none, error_message).
     Never raises; logs and returns error tuple on failure or timeout.
     """
-    cmd = ["codex", prompt]
+    cmd = ["codex", "exec", prompt]
     cwd = str(WORK_REPO_PATH)
     try:
         result = subprocess.run(
@@ -28,6 +28,7 @@ def _run_codex(prompt: str) -> Tuple[bool, Any, str]:
             capture_output=True,
             text=True,
             timeout=CODEX_TIMEOUT_SECONDS,
+            stdin=subprocess.DEVNULL
         )
         stdout = (result.stdout or "").strip()
         stderr = (result.stderr or "").strip()
