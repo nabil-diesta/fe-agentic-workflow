@@ -11,7 +11,7 @@ from config import JIRA_PROJECT_KEY, JIRA_USER_EMAIL, WORK_REPO_PATH
 
 logger = logging.getLogger(__name__)
 
-CODEX_TIMEOUT_SECONDS = 30
+CODEX_TIMEOUT_SECONDS = 120
 
 
 def _run_codex(prompt: str) -> Tuple[bool, Any, str]:
