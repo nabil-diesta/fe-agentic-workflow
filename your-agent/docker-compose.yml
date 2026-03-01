@@ -4,10 +4,7 @@ services:
     image: devagent:latest
     container_name: devagent
     restart: always
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "8000:8000"
+    network_mode: host
     env_file: .env
     volumes:
       - ./data:/app/data
