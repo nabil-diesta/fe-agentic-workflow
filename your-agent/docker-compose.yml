@@ -1,0 +1,14 @@
+services:
+  agent:
+    build: .
+    image: devagent:latest
+    container_name: devagent
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    environment:
+      - CHROMA_PERSIST_PATH=/app/data/chroma
+      - SQLITE_PATH=/app/data/agent.db

@@ -1,0 +1,25 @@
+# Secrets and credentials (never commit)
+.env
+credentials.json
+token.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.eggs/
+
+# Temporary processing files (regenerated as needed)
+.tmp/*
+!.tmp/.gitkeep
+
+# Agent data (persisted in Docker volume)
+your-agent/data/
+
+# OS
+.DS_Store
+*.swp
+*.swo
