@@ -35,8 +35,14 @@ class ChatResponse(BaseModel):
     skills_used: list[str] = []
 
 
-def _run_telegram_polling() -> None:
-    """Run Telegram bot in polling mode (blocking). Intended for a background thread."""
+# Module-level ref for lifespan shutdown (no signal handlers; fully async).
+telegram_application = None
+_telegram_polling_task = None
+
+
+async def start_telegram_bot() -> None:
+    """Start Telegram bot using initialize/start/updater.start_polling (no run_polling, no signal handlers)."""
+    global telegram_application, _telegram_polling_task
     if not TELEGRAM_BOT_TOKEN:
         logger.info("TELEGRAM_BOT_TOKEN not set; Telegram bot disabled.")
         return
@@ -59,21 +65,41 @@ def _run_telegram_polling() -> None:
         async def post_init(app: Application) -> None:
             app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-        app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
+        application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
+        await application.initialize()
+        if getattr(application, "post_init", None) is not None:
+            await application.post_init(application)
+        _telegram_polling_task = asyncio.create_task(
+            application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+        )
+        await application.start()
+        telegram_application = application
+        logger.info("Telegram bot started (polling).")
     except ImportError:
         logger.warning("python-telegram-bot not installed; Telegram disabled.")
     except Exception as e:
-        logger.exception("Telegram polling failed: %s", e)
+        logger.exception("Telegram failed to start: %s", e)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start Telegram polling in background thread."""
-    loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, _run_telegram_polling)
+    """Start Telegram bot on startup; stop it cleanly on shutdown."""
+    await start_telegram_bot()
     yield
-    # Shutdown: executor threads are daemon by default; no explicit stop needed for polling
+    global telegram_application, _telegram_polling_task
+    if telegram_application is not None:
+        try:
+            await telegram_application.updater.stop()
+            if _telegram_polling_task is not None:
+                await _telegram_polling_task
+            await telegram_application.stop()
+            await telegram_application.shutdown()
+            logger.info("Telegram bot stopped.")
+        except Exception as e:
+            logger.warning("Telegram shutdown error: %s", e)
+        finally:
+            telegram_application = None
+            _telegram_polling_task = None
 
 
 app = FastAPI(title="DevAgent", lifespan=lifespan)
