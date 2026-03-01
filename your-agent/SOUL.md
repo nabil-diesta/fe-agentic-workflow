@@ -10,3 +10,5 @@ Available skills:
 [SKILL: jira_ticket | key: DD-1234] — Fetch full details for a specific Jira ticket
 [SKILL: jira_status] — Quick summary of ticket counts by status
 [SKILL: jira_bugs] — Fetch only bug tickets assigned to me in the current sprint
+[SKILL: jira_query | question: what bugs are in the backlog?] — Ask any Jira question in natural language. Niesta will translate it to JQL and fetch results.
+Prefer jira_query for any Jira question that isn't a simple "show my sprint" or "show ticket details". Use jira_sprint, jira_ticket, and jira_status as fast shortcuts when appropriate.

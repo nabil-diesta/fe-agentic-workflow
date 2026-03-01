@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from config import LISTENER_PORT
 from executor import get_running_tasks, run_codex_task
-from jira import fetch_my_sprint, fetch_my_status, fetch_ticket
+from jira import fetch_my_sprint, fetch_my_status, fetch_ticket, run_jql_query
 from sessions import get_active_sessions, get_session_by_id, get_sessions
 
 logging.basicConfig(
@@ -45,6 +45,12 @@ app.add_middleware(
 class RunCodexBody(BaseModel):
     task: str
     cwd: Optional[str] = None
+
+
+class JiraQueryBody(BaseModel):
+    jql: str
+    fields: Optional[List[str]] = None
+    max_results: int = 50
 
 
 @app.get("/health")
@@ -137,6 +143,21 @@ async def jira_ticket(ticket_key: str) -> dict:
         raise
     except Exception as e:
         logger.exception("GET /jira/ticket/%s: %s", ticket_key, e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/jira/query")
+async def jira_query(body: JiraQueryBody) -> dict:
+    """Run a JQL query. Returns { \"tickets\": [...] } or error."""
+    try:
+        ok, data, err, status = await run_jql_query(body.jql, body.fields, body.max_results)
+        if not ok:
+            raise HTTPException(status_code=status, detail=err or "Jira query failed")
+        return {"tickets": data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("POST /jira/query: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

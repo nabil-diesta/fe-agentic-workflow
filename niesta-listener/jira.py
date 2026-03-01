@@ -96,6 +96,61 @@ async def fetch_my_sprint() -> Tuple[bool, Optional[List[dict]], str]:
     return True, out, ""
 
 
+async def run_jql_query(
+    jql: str,
+    fields: Optional[List[str]] = None,
+    max_results: int = 50,
+) -> Tuple[bool, Optional[List[dict]], str, int]:
+    """
+    Run an arbitrary JQL query. Returns (success, list of tickets, error_message, http_status).
+    Each ticket is a flat dict: key, summary, status, priority, assignee, type.
+    """
+    err = _check_token()
+    if err:
+        return False, None, err, 502
+    if not (jql or "").strip():
+        return False, None, "JQL is required.", 400
+    fields_list = fields or ["key", "summary", "status", "priority", "assignee", "issuetype"]
+    fields_str = ",".join(f.strip() for f in fields_list if f and isinstance(f, str))
+    if not fields_str:
+        fields_str = "key,summary,status,priority,assignee,issuetype"
+    url = f"{JIRA_BASE_URL}/search/jql"
+    params = {"jql": jql.strip(), "fields": fields_str, "maxResults": min(max(1, max_results), 100)}
+    try:
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+            r = await client.get(
+                url,
+                params=params,
+                headers={"Authorization": f"Basic {_auth_header()}", "Accept": "application/json"},
+            )
+            if r.status_code == 400:
+                try:
+                    body = r.json()
+                    msg = body.get("errorMessages") or body.get("errors") or r.text
+                    if isinstance(msg, list):
+                        msg = "; ".join(str(m) for m in msg)
+                    elif isinstance(msg, dict):
+                        msg = "; ".join(f"{k}: {v}" for k, v in msg.items())
+                    return False, None, msg or "Invalid JQL", 400
+                except Exception:
+                    return False, None, r.text or "Invalid JQL (400)", 400
+            r.raise_for_status()
+            data = r.json()
+    except httpx.HTTPStatusError as e:
+        msg = e.response.text if e.response else str(e)
+        logger.warning("Jira JQL failed: %s", msg)
+        return False, None, msg or f"HTTP {e.response.status_code}", 502
+    except httpx.RequestError as e:
+        logger.warning("Jira request error: %s", e)
+        return False, None, str(e), 502
+    except Exception as e:
+        logger.exception("Jira run_jql_query error: %s", e)
+        return False, None, str(e), 502
+    issues = data.get("issues") or []
+    out = [_parse_issue(i) for i in issues]
+    return True, out, "", 200
+
+
 async def fetch_ticket(ticket_key: str) -> Tuple[bool, Optional[dict], str]:
     """
     Fetch full details for one ticket. Returns (success, ticket_dict, error_message).
