@@ -29,6 +29,13 @@ CREATE TABLE IF NOT EXISTS conversations (
 
 CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations(created_at);
+
+CREATE TABLE IF NOT EXISTS rolling_summaries (
+    session_id TEXT PRIMARY KEY,
+    summary TEXT NOT NULL,
+    message_count INTEGER NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -90,5 +97,43 @@ class SQLiteMemory:
             logger.warning("Failed to append conversation: %s", e)
 
     def get_rolling_summary(self, session_id: str) -> str:
-        """Placeholder: return empty. Can be extended to store/retrieve a rolling summary."""
-        return ""
+        """Read summary from rolling_summaries table for this session."""
+        try:
+            with sqlite3.connect(self._path) as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT summary FROM rolling_summaries WHERE session_id = ?",
+                    (session_id,),
+                ).fetchone()
+                return row["summary"] if row else ""
+        except Exception as e:
+            logger.warning("Failed to load rolling summary: %s", e)
+            return ""
+
+    def set_rolling_summary(self, session_id: str, summary: str, message_count: int) -> None:
+        """Upsert into rolling_summaries. Stores session_id, summary, message_count, updated_at (UTC ISO)."""
+        import datetime
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        try:
+            with sqlite3.connect(self._path) as conn:
+                conn.execute(
+                    """INSERT INTO rolling_summaries (session_id, summary, message_count, updated_at)
+                       VALUES (?, ?, ?, ?) ON CONFLICT(session_id) DO UPDATE SET
+                       summary=?, message_count=?, updated_at=?""",
+                    (session_id, summary, message_count, now, summary, message_count, now),
+                )
+        except Exception as e:
+            logger.warning("Failed to set rolling summary: %s", e)
+
+    def get_total_message_count(self, session_id: str) -> int:
+        """Return COUNT(*) of conversations for this session_id. Returns 0 on failure."""
+        try:
+            with sqlite3.connect(self._path) as conn:
+                row = conn.execute(
+                    "SELECT COUNT(*) AS n FROM conversations WHERE session_id = ?",
+                    (session_id,),
+                ).fetchone()
+                return row[0] if row else 0
+        except Exception as e:
+            logger.warning("Failed to get total message count: %s", e)
+            return 0

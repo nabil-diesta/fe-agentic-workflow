@@ -68,17 +68,41 @@ async def process(
 
     core_memory = sqlite.get_core_memory()
     history = sqlite.get_conversation_history(session_id, limit=CONTEXT_MESSAGES)
+    total_message_count = sqlite.get_total_message_count(session_id)
     summary = sqlite.get_rolling_summary(session_id)
-    if summary:
-        history = [{"role": "system", "content": f"Earlier conversation summary: {summary}"}] + history
-
-    semantic_context = chroma.search(message, n_results=5) if message else []
 
     try:
         client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
     except Exception as e:
         logger.warning("OpenAI client init: %s", e)
         client = None
+
+    if total_message_count > 40 and client:
+        try:
+            full_history = sqlite.get_conversation_history(session_id, limit=10000)
+            older = full_history[:-CONTEXT_MESSAGES] if len(full_history) > CONTEXT_MESSAGES else []
+            if older:
+                compression_prompt = (
+                    "Summarise the following conversation concisely. "
+                    "Preserve key facts, decisions, and context. Output only the summary, no preamble.\n\n"
+                    + "\n".join(f"{h['role']}: {h['content']}" for h in older)
+                )
+                comp = client.chat.completions.create(
+                    model=OPENAI_DEFAULT_MODEL,
+                    messages=[{"role": "user", "content": compression_prompt}],
+                    temperature=0.3,
+                )
+                new_summary = (comp.choices[0].message.content or "").strip()
+                if new_summary:
+                    sqlite.set_rolling_summary(session_id, new_summary, total_message_count)
+                    summary = new_summary
+        except Exception as e:
+            logger.warning("Rolling summary compression failed: %s", e)
+
+    if summary:
+        history = [{"role": "system", "content": f"Earlier conversation summary: {summary}"}] + history
+
+    semantic_context = chroma.search(message, n_results=5) if message else []
 
     if not client or not OPENAI_API_KEY:
         sqlite.append_exchange(session_id, "user", message, source)
