@@ -1,5 +1,7 @@
 import { Component, inject, signal, effect } from '@angular/core';
+import { Router } from '@angular/router';
 import { ApiService, CodexSession } from '../../core/services/api.service';
+import { ToastService } from '../../core/services/toast.service';
 
 @Component({
   selector: 'app-sessions',
@@ -10,10 +12,13 @@ import { ApiService, CodexSession } from '../../core/services/api.service';
 })
 export class SessionsComponent {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly sessions = signal<CodexSession[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly deletingId = signal<string | null>(null);
 
   constructor() {
     effect(() => {
@@ -28,6 +33,25 @@ export class SessionsComponent {
       this.loading.set(false);
       if (list) this.sessions.set(list);
       else this.error.set('Failed to load sessions.');
+    });
+  }
+
+  openThread(session: CodexSession): void {
+    this.router.navigate(['/thread', session.session_id]);
+  }
+
+  deleteSession(event: Event, session: CodexSession): void {
+    event.stopPropagation(); // don't trigger row click
+    if (this.deletingId() === session.session_id) return;
+    this.deletingId.set(session.session_id);
+    this.api.deleteSession(session.session_id).subscribe((res) => {
+      this.deletingId.set(null);
+      if (res) {
+        this.sessions.update((list) => list.filter((s) => s.session_id !== session.session_id));
+        this.toast.show('Session deleted.');
+      } else {
+        this.toast.show('Failed to delete session.');
+      }
     });
   }
 

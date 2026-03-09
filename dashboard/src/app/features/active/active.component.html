@@ -1,0 +1,111 @@
+<div class="active">
+  <div class="active-header">
+    <h1>All Tasks</h1>
+    <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">Refresh</button>
+  </div>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (loading() && tasks().length === 0) {
+    <p class="loading">Loading tasks…</p>
+  } @else if (tasks().length === 0) {
+    <p class="empty">No tasks found.</p>
+  } @else {
+    <div class="task-cards">
+      @for (task of tasks(); track task.task_id) {
+        <div class="task-card" [class.expanded]="isExpanded(task.task_id)">
+
+          <!-- Header row: click to expand -->
+          <div class="card-header" (click)="toggleExpand(task.task_id)">
+            <div class="task-status" [ngClass]="statusClass(task.status)">
+              <span class="dot"></span>
+              <span>{{ statusLabel(task.status) }}</span>
+            </div>
+            @if (task.ticket_key) {
+              <span class="task-key">{{ task.ticket_key }}</span>
+            }
+            <span class="task-desc flex-1">{{ truncate(task.task) }}</span>
+            <span class="expand-icon">{{ isExpanded(task.task_id) ? '▲' : '▼' }}</span>
+          </div>
+
+          <!-- Meta row -->
+          <div class="task-meta-row">
+            <span class="task-meta">{{ task.cwd }}</span>
+            <span class="task-meta">Started {{ formatTime(task.started_at) }}</span>
+            @if (task.completed_at) {
+              <span class="task-meta">Ended {{ formatTime(task.completed_at) }}</span>
+            }
+          </div>
+
+          <!-- Action buttons -->
+          <div class="task-actions">
+            <button type="button" class="btn-checkin" (click)="checkIn(task)">Check In</button>
+            @if (task.status === 'running') {
+              <button type="button" class="btn-interrupt" (click)="interrupt(task)">Interrupt</button>
+            }
+            @if (task.status !== 'running') {
+              <button type="button" class="btn-resume" (click)="openResume(task)">Resume</button>
+            }
+          </div>
+
+          <!-- Expanded detail panel -->
+          @if (isExpanded(task.task_id)) {
+            <div class="task-detail">
+              @if (task.output) {
+                <div class="detail-section">
+                  <strong>Output</strong>
+                  <pre class="detail-pre">{{ task.output }}</pre>
+                </div>
+              }
+              @if (task.error) {
+                <div class="detail-section error-section">
+                  <strong>Error</strong>
+                  <pre class="detail-pre">{{ task.error }}</pre>
+                </div>
+              }
+              @if (task.status === 'running' && eventsFor(task.task_id).length) {
+                <div class="detail-section">
+                  <strong>Live Events ({{ eventsFor(task.task_id).length }})</strong>
+                  <div class="event-log">
+                    @for (evt of eventsFor(task.task_id); track $index) {
+                      <div class="event-line">{{ evt | json }}</div>
+                    }
+                  </div>
+                </div>
+              }
+              <div class="task-id mono">ID: {{ task.task_id }}</div>
+              <div class="task-id mono">Thread: {{ task.thread_id }}</div>
+            </div>
+          }
+
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Resume modal -->
+  @if (resumeTaskId()) {
+    <div class="modal-overlay" (click)="closeResume()"></div>
+    <div class="modal" role="dialog">
+      <h3>Resume Task</h3>
+      <label class="modal-label">
+        <span>Prompt</span>
+        <textarea
+          [value]="resumePrompt()"
+          (input)="resumePrompt.set($any($event.target).value)"
+          placeholder="What should Codex do next?"
+          rows="4"
+        ></textarea>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeResume()">Cancel</button>
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="submitResume()"
+          [disabled]="resumeSubmitting() || !resumePrompt().trim()"
+        >Resume</button>
+      </div>
+    </div>
+  }
+</div>

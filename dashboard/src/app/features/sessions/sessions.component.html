@@ -19,17 +19,27 @@
             <th>Model</th>
             <th>Status</th>
             <th>Last activity</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           @for (s of sessions(); track s.session_id) {
-            <tr>
+            <tr class="session-row" (click)="openThread(s)" title="Open thread">
               <td class="mono">{{ truncateId(s.session_id) }}</td>
               <td>{{ s.timestamp ?? '—' }}</td>
               <td class="cwd">{{ s.cwd ?? '—' }}</td>
               <td>{{ s.model ?? '—' }}</td>
               <td><span class="badge" [class]="statusClass(s.status)">{{ s.status ?? '—' }}</span></td>
               <td>{{ formatTime(s.last_activity_ts ?? s.last_activity) }}</td>
+              <td class="actions-cell">
+                <button
+                  type="button"
+                  class="btn-delete"
+                  (click)="deleteSession($event, s)"
+                  [disabled]="deletingId() === s.session_id"
+                  title="Delete session"
+                >{{ deletingId() === s.session_id ? '…' : '✕' }}</button>
+              </td>
             </tr>
           }
         </tbody>

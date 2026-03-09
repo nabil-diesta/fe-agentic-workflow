@@ -1,7 +1,11 @@
 import { Component, inject, signal, computed, effect } from '@angular/core';
-import { ApiService, JiraTicket } from '../../core/services/api.service';
+import { Router } from '@angular/router';
+import { ApiService, JiraTicket, CodexTask, Workdir } from '../../core/services/api.service';
+import { ToastService } from '../../core/services/toast.service';
+import { parseTicketKeyFromTask } from '../../core/utils/ticket-key';
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
+const RUNNING_TASKS_POLL_MS = 15_000;
 
 @Component({
   selector: 'app-sprint',
@@ -12,12 +16,20 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 })
 export class SprintComponent {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly tickets = signal<JiraTicket[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly detailTicket = signal<JiraTicket | null>(null);
   readonly detailLoading = signal(false);
+  readonly runningTasks = signal<CodexTask[]>([]);
+  readonly showStartWorkModal = signal(false);
+  readonly startWorkInstructions = signal('');
+  readonly startWorkCwd = signal('');
+  readonly startWorkSubmitting = signal(false);
+  readonly workdirs = signal<Workdir[]>([]);
 
   readonly byStatus = computed(() => {
     const list = this.tickets();
@@ -35,9 +47,40 @@ export class SprintComponent {
 
   readonly columnOrder = ['To Do', 'In Progress', 'In Review', 'In QA', 'Done', 'Unknown'] as const;
 
+  /** Set of ticket keys that have an active Codex task. */
+  readonly ticketKeysWithCodex = computed(() => {
+    const keys = new Set<string>();
+    for (const t of this.runningTasks()) {
+      if (t.ticket_key) keys.add(t.ticket_key);
+      const k = parseTicketKeyFromTask(t.task);
+      if (k) keys.add(k);
+    }
+    return keys;
+  });
+
+  constructor() {
+    this.api.getWorkdirs().subscribe((dirs) => {
+      if (dirs && dirs.length) {
+        this.workdirs.set(dirs);
+        this.startWorkCwd.set(dirs[0].path);
+      }
+    });
+  }
+
   private refreshEffect = effect(() => {
     this.load();
     const id = setInterval(() => this.load(), AUTO_REFRESH_MS);
+    return () => clearInterval(id);
+  });
+
+  private runningTasksEffect = effect(() => {
+    const loadTasks = () => {
+      this.api.getRunningTasks().subscribe((list) => {
+        if (list) this.runningTasks.set(list);
+      });
+    };
+    loadTasks();
+    const id = setInterval(loadTasks, RUNNING_TASKS_POLL_MS);
     return () => clearInterval(id);
   });
 
@@ -62,6 +105,52 @@ export class SprintComponent {
 
   closeDetail(): void {
     this.detailTicket.set(null);
+    this.showStartWorkModal.set(false);
+  }
+
+  openStartWorkModal(): void {
+    this.startWorkInstructions.set('');
+    const dirs = this.workdirs();
+    this.startWorkCwd.set(dirs.length ? dirs[0].path : '');
+    this.showStartWorkModal.set(true);
+  }
+
+  closeStartWorkModal(): void {
+    this.showStartWorkModal.set(false);
+  }
+
+  submitStartWork(): void {
+    const t = this.detailTicket();
+    if (!t) return;
+    const instructions = this.startWorkInstructions().trim();
+    const cwd = this.startWorkCwd().trim();
+    if (!cwd) {
+      this.toast.show('Please select a working directory.');
+      return;
+    }
+    const taskBody = [
+      `Implement ${t.key}: ${t.summary ?? ''}`,
+      t.description ?? '',
+      instructions,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+    this.startWorkSubmitting.set(true);
+    this.api.startCodex(taskBody, cwd, t.key).subscribe((res) => {
+      this.startWorkSubmitting.set(false);
+      if (res) {
+        this.toast.show(`Codex started on ${t.key}`);
+        this.closeStartWorkModal();
+        this.closeDetail();
+        this.router.navigate(['/active']);
+      } else {
+        this.toast.show('Failed to start Codex.');
+      }
+    });
+  }
+
+  hasCodexWorking(key: string): boolean {
+    return this.ticketKeysWithCodex().has(key);
   }
 
   priorityClass(p?: string): string {

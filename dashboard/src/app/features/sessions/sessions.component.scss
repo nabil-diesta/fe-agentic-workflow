@@ -44,9 +44,41 @@
     color: var(--text-secondary);
   }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg-secondary); }
   .mono { font-family: ui-monospace, monospace; }
   .cwd { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.session-row {
+  cursor: pointer;
+  transition: background 0.1s;
+  td { transition: background 0.1s; }
+  &:hover td { background: var(--bg-secondary); }
+}
+
+.actions-cell {
+  width: 40px;
+  padding: 0.4rem 0.5rem !important;
+  text-align: center;
+}
+
+.btn-delete {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+
+  .session-row:hover & { opacity: 1; }
+  &:hover { background: #fee2e2; color: #dc2626; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
 .badge {

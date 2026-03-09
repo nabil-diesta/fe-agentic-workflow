@@ -16,4 +16,44 @@
     <button type="button" class="btn-save" (click)="save()">Save</button>
   </div>
   <p class="hint">URLs and theme are saved to localStorage.</p>
+
+  <section class="workdirs-section">
+    <h2>Portal Directories</h2>
+    <p class="hint">These directories appear in the "Start Work" dropdown on the Sprint board.</p>
+    @if (workdirsLoading()) {
+      <p class="loading">Loading…</p>
+    } @else {
+      <ul class="workdir-list">
+        @for (dir of workdirs(); track dir.path) {
+          <li class="workdir-item">
+            <span class="workdir-label">{{ dir.label }}</span>
+            <span class="workdir-path">{{ dir.path }}</span>
+            <button type="button" class="btn-remove" (click)="removeWorkdir(dir.path)">Remove</button>
+          </li>
+        } @empty {
+          <li class="workdir-empty">No directories configured.</li>
+        }
+      </ul>
+      <div class="workdir-add">
+        <input
+          type="text"
+          [value]="newWorkdirLabel()"
+          (input)="newWorkdirLabel.set($any($event.target).value)"
+          placeholder="Label (e.g. Portal 1)"
+        />
+        <input
+          type="text"
+          [value]="newWorkdirPath()"
+          (input)="newWorkdirPath.set($any($event.target).value)"
+          placeholder="/absolute/path/to/repo"
+        />
+        <button
+          type="button"
+          class="btn-save"
+          (click)="addWorkdir()"
+          [disabled]="!newWorkdirLabel().trim() || !newWorkdirPath().trim()"
+        >Add</button>
+      </div>
+    }
+  </section>
 </div>

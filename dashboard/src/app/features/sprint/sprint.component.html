@@ -19,6 +19,9 @@
               @for (t of items; track t.key) {
                 <button type="button" class="card" (click)="openDetail(t.key)">
                   <span class="card-key">{{ t.key }}</span>
+                  @if (hasCodexWorking(t.key)) {
+                    <span class="codex-working"><span class="codex-dot"></span> Codex working...</span>
+                  }
                   <span class="card-summary">{{ t.summary || '—' }}</span>
                   <div class="badges">
                     @if (t.priority) {
@@ -42,7 +45,12 @@
     <aside class="detail-panel">
       <div class="detail-header">
         <h2>Ticket</h2>
-        <button type="button" class="btn-close" (click)="closeDetail()">×</button>
+        <div class="detail-header-actions">
+          @if (detailTicket(); as t) {
+            <button type="button" class="btn-start-work" (click)="openStartWorkModal()">Start Work</button>
+          }
+          <button type="button" class="btn-close" (click)="closeDetail()">×</button>
+        </div>
       </div>
       @if (detailLoading()) {
         <p class="loading">Loading…</p>
@@ -78,5 +86,38 @@
         </div>
       }
     </aside>
+  }
+
+  @if (showStartWorkModal() && detailTicket(); as t) {
+    <div class="modal-overlay" (click)="closeStartWorkModal()"></div>
+    <div class="modal" role="dialog">
+      <h3>Start Codex on {{ t.key }}: {{ t.summary }}</h3>
+      @if (t.description) {
+        <div class="modal-description">
+          <strong>Description</strong>
+          <p>{{ t.description }}</p>
+        </div>
+      }
+      <label class="modal-label">
+        <span>Additional instructions (optional)</span>
+        <textarea [value]="startWorkInstructions()" (input)="startWorkInstructions.set($any($event.target).value)" placeholder="e.g. focus on the component in src/payouts/" rows="3"></textarea>
+      </label>
+      <label class="modal-label">
+        <span>Working Directory</span>
+        @if (workdirs().length) {
+          <select [value]="startWorkCwd()" (change)="startWorkCwd.set($any($event.target).value)">
+            @for (dir of workdirs(); track dir.path) {
+              <option [value]="dir.path">{{ dir.label }} — {{ dir.path }}</option>
+            }
+          </select>
+        } @else {
+          <input type="text" [value]="startWorkCwd()" (input)="startWorkCwd.set($any($event.target).value)" placeholder="/path/to/repo" />
+        }
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeStartWorkModal()">Cancel</button>
+        <button type="button" class="btn-primary" (click)="submitStartWork()" [disabled]="startWorkSubmitting()">Start</button>
+      </div>
+    </div>
   }
 </div>

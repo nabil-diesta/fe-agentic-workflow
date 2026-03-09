@@ -1,0 +1,106 @@
+<div class="thread-view">
+  <div class="thread-header">
+    <button type="button" class="btn-back" (click)="goBack()">← Back</button>
+    @if (thread(); as t) {
+      <div class="thread-meta">
+        <span class="thread-cwd mono">{{ t.cwd }}</span>
+        @if (t.gitInfo) {
+          <span class="thread-branch">{{ t.gitInfo.branch }}</span>
+        }
+        <span class="thread-status" [ngClass]="'status-' + t.status.type">{{ t.status.type }}</span>
+      </div>
+    }
+    <button type="button" class="btn-copy-id" (click)="copyId()" [class.copied]="copied()" title="Copy: codex resume {{ threadId }}">
+      {{ copied() ? '✓ Copied' : 'Copy ID' }}
+    </button>
+  </div>
+
+  @if (loading() && !thread()) {
+    <p class="state-msg">Loading thread…</p>
+  } @else if (error()) {
+    <p class="state-msg error">{{ error() }}</p>
+  } @else if (thread(); as t) {
+    <div class="turns">
+      @for (turn of t.turns; track turn.id) {
+        @for (item of turn.items; track item.id) {
+
+          @if (item.type === 'userMessage') {
+            <div class="bubble user">
+              <div class="bubble-label">You</div>
+              <div class="bubble-body">{{ userText(item) }}</div>
+            </div>
+          }
+
+          @if (item.type === 'reasoning' && item.summary?.length) {
+            <div class="reasoning-block">
+              <button type="button" class="reasoning-toggle" (click)="toggleReasoning(item.id)">
+                <span class="reasoning-icon">{{ isReasoningExpanded(item.id) ? '▼' : '▶' }}</span>
+                Codex thinking… ({{ item.summary!.length }} steps)
+              </button>
+              @if (isReasoningExpanded(item.id)) {
+                <ul class="reasoning-list">
+                  @for (step of item.summary!; track $index) {
+                    <li class="reasoning-step" [innerHTML]="step | markdown"></li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+
+          @if (item.type === 'agentMessage' && item.text) {
+            <div class="bubble agent">
+              <div class="bubble-label">Codex</div>
+              <div class="bubble-body markdown" [innerHTML]="item.text | markdown"></div>
+            </div>
+          }
+
+          @if (item.type === 'commandExecution') {
+            <div class="command-block">
+              <div class="command-header">
+                <span class="command-icon">$</span>
+                <code class="command-str">{{ commandStr(item) }}</code>
+                @if (item.exitCode != null) {
+                  <span class="exit-code" [ngClass]="item.exitCode === 0 ? 'exit-ok' : 'exit-err'">
+                    exit {{ item.exitCode }}
+                  </span>
+                }
+              </div>
+              @if (item.output) {
+                <pre class="command-output">{{ item.output }}</pre>
+              }
+            </div>
+          }
+
+        }
+      }
+
+      @if (isRunning() || thinking()) {
+        <div class="running-indicator">
+          <span class="dot"></span>
+          <span>Codex is thinking…</span>
+        </div>
+      }
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+      <textarea
+        class="prompt-input"
+        [value]="prompt()"
+        (input)="prompt.set($any($event.target).value)"
+        (keydown)="onKeydown($event)"
+        placeholder="Send a follow-up prompt… (Cmd+Enter to send)"
+        rows="3"
+        [disabled]="sending() || isRunning() || thinking()"
+      ></textarea>
+      <button
+        type="button"
+        class="btn-send"
+        (click)="sendPrompt()"
+        [disabled]="sending() || isRunning() || thinking() || !prompt().trim()"
+      >
+        {{ sending() ? 'Sending…' : 'Send' }}
+      </button>
+    </div>
+  }
+</div>

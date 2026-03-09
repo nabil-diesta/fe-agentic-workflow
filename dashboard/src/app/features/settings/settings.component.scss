@@ -58,3 +58,85 @@
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+
+.loading { color: var(--text-secondary); font-size: 0.9rem; }
+
+.workdirs-section {
+  margin-top: 2rem;
+  max-width: 600px;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.35rem; }
+  .hint { margin-top: 0; margin-bottom: 1rem; }
+}
+
+.workdir-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.workdir-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.workdir-label {
+  font-weight: 500;
+  min-width: 80px;
+  font-size: 0.9rem;
+}
+
+.workdir-path {
+  flex: 1;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workdir-empty {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.btn-remove {
+  padding: 0.3rem 0.6rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  &:hover { background: #b91c1c; }
+}
+
+.workdir-add {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+
+  input {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font: inherit;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 140px;
+    &:focus { outline: none; border-color: var(--accent); }
+  }
+}

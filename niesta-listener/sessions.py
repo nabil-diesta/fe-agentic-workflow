@@ -136,3 +136,18 @@ def get_session_by_id(session_id: str) -> Optional[dict]:
 def get_active_sessions() -> List[dict]:
     """Return only sessions with status 'active' (< 24hrs)."""
     return [s for s in get_sessions() if s.get("status") == "active"]
+
+
+def delete_session(session_id: str) -> bool:
+    """Delete the .jsonl file for a session. Returns True if deleted, False if not found."""
+    global _cache, _cache_time
+    for s in get_sessions(force_refresh=True):
+        if s.get("session_id") == session_id:
+            path = Path(s["path"])
+            if path.exists():
+                path.unlink()
+            # Invalidate cache so the deleted session doesn't reappear
+            _cache = None
+            _cache_time = 0
+            return True
+    return False
