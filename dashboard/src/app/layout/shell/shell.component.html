@@ -11,6 +11,7 @@
   <aside class="sidebar">
     <nav>
       <a routerLink="/sprint" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Sprint Board</a>
+      <a routerLink="/active" routerLinkActive="active">Active Tasks</a>
       <a routerLink="/chat" routerLinkActive="active">Chat</a>
       <a routerLink="/sessions" routerLinkActive="active">Codex Sessions</a>
       <a routerLink="/settings" routerLinkActive="active">Settings</a>
@@ -19,4 +20,7 @@
   <main class="content">
     <router-outlet />
   </main>
+  @if (toast.message()) {
+    <div class="toast" role="status">{{ toast.message() }}</div>
+  }
 </div>

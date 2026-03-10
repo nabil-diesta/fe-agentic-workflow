@@ -1,4 +1,5 @@
 import { Component, inject, signal, viewChild, ElementRef } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { MarkdownPipe } from '../../core/pipes/markdown.pipe';
 
@@ -16,11 +17,17 @@ export interface ChatMessage {
 })
 export class ChatComponent {
   private readonly api = inject(ApiService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly messages = signal<ChatMessage[]>([]);
   readonly loading = signal(false);
   readonly inputValue = signal('');
   inputEl = viewChild<ElementRef<HTMLTextAreaElement>>('inputEl');
+
+  constructor() {
+    const q = this.route.snapshot.queryParamMap.get('message');
+    if (q) this.inputValue.set(q);
+  }
 
   onKeydown(e: KeyboardEvent): void {
     if (e.key === 'Enter' && !e.shiftKey) {

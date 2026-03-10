@@ -19,6 +19,11 @@ venv/
 # Agent data (persisted in Docker volume)
 your-agent/data/
 
+# SQLite databases (auto-created at runtime)
+*.db
+*.db-shm
+*.db-wal
+
 # OS
 .DS_Store
 *.swp
