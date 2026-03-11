@@ -30,6 +30,20 @@ export class ActiveComponent {
   readonly resumeSubmitting = signal(false);
   readonly taskEvents = signal<Map<string, unknown[]>>(new Map());
 
+  readonly selected = signal<Set<string>>(new Set());
+  readonly deletingId = signal<string | null>(null);
+  readonly bulkDeleting = signal(false);
+
+  readonly allSelected = computed(() => {
+    const t = this.tasks();
+    return t.length > 0 && this.selected().size === t.length;
+  });
+
+  readonly someSelected = computed(() => {
+    const size = this.selected().size;
+    return size > 0 && size < this.tasks().length;
+  });
+
   readonly runningTaskIds = computed(() =>
     this.tasks().filter(t => t.status === 'running').map(t => t.task_id)
   );
@@ -65,6 +79,7 @@ export class ActiveComponent {
   }
 
   load(): void {
+    this.loading.set(true);
     this.api.getAllTasks().subscribe((list) => {
       this.loading.set(false);
       if (list !== null) this.tasks.set(list);
@@ -162,5 +177,63 @@ export class ActiveComponent {
 
   checkIn(task: CodexTask): void {
     this.router.navigate(['/thread', task.thread_id]);
+  }
+
+  toggleSelect(taskId: string): void {
+    this.selected.update((s) => {
+      const next = new Set(s);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      return next;
+    });
+  }
+
+  toggleSelectAll(): void {
+    if (this.allSelected()) {
+      this.selected.set(new Set());
+    } else {
+      this.selected.set(new Set(this.tasks().map((t) => t.task_id)));
+    }
+  }
+
+  isSelected(taskId: string): boolean {
+    return this.selected().has(taskId);
+  }
+
+  deleteTask(event: Event, task: CodexTask): void {
+    event.stopPropagation();
+    if (this.deletingId() === task.task_id) return;
+    this.deletingId.set(task.task_id);
+    this.api.deleteTask(task.task_id).subscribe((ok) => {
+      this.deletingId.set(null);
+      if (ok) {
+        this.tasks.update((list) => list.filter((t) => t.task_id !== task.task_id));
+        this.selected.update((s) => { const n = new Set(s); n.delete(task.task_id); return n; });
+        this.toast.show('Task deleted.');
+      } else {
+        this.toast.show('Failed to delete task.');
+      }
+    });
+  }
+
+  deleteSelected(): void {
+    const ids = [...this.selected()];
+    if (!ids.length || this.bulkDeleting()) return;
+    this.bulkDeleting.set(true);
+    let remaining = ids.length;
+    let failed = 0;
+    for (const id of ids) {
+      this.api.deleteTask(id).subscribe((ok) => {
+        if (!ok) failed++;
+        remaining--;
+        if (remaining === 0) {
+          this.bulkDeleting.set(false);
+          this.load();
+          this.selected.set(new Set());
+          this.toast.show(failed
+            ? `Deleted ${ids.length - failed}; ${failed} failed.`
+            : `Deleted ${ids.length} task${ids.length > 1 ? 's' : ''}.`);
+        }
+      });
+    }
   }
 }

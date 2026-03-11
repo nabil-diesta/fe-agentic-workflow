@@ -317,6 +317,26 @@ async def get_thread_info(thread_id: str) -> Optional[dict]:
         return None
 
 
+async def delete_task(task_id: str) -> bool:
+    """Delete a single task by task_id. Returns True if deleted."""
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        cursor = await db.execute(
+            "DELETE FROM tasks WHERE task_id = ?", (task_id,)
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def delete_tasks_by_thread_id(thread_id: str) -> int:
+    """Delete all tasks for a given thread_id. Returns number of rows deleted."""
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        cursor = await db.execute(
+            "DELETE FROM tasks WHERE thread_id = ?", (thread_id,)
+        )
+        await db.commit()
+        return cursor.rowcount
+
+
 async def list_codex_threads(limit: int = 25) -> dict:
     """List all Codex threads from app-server."""
     return await codex_server.list_threads(limit=limit)

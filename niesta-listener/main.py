@@ -25,6 +25,8 @@ from executor import (
     interrupt_task,
     get_thread_info,
     list_codex_threads,
+    delete_task,
+    delete_tasks_by_thread_id,
 )
 from jira import fetch_my_sprint, fetch_my_status, fetch_ticket, run_jql_query
 from sessions import delete_session, get_active_sessions, get_session_by_id, get_sessions
@@ -128,12 +130,13 @@ async def session_detail(session_id: str) -> dict:
 
 @app.delete("/sessions/{session_id}")
 async def delete_session_endpoint(session_id: str) -> dict:
-    """Delete a session's .jsonl file from disk."""
+    """Delete a session's .jsonl file and any associated tasks from the DB."""
     try:
         deleted = delete_session(session_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Session not found")
-        return {"deleted": session_id}
+        tasks_deleted = await delete_tasks_by_thread_id(session_id)
+        return {"deleted": session_id, "tasks_deleted": tasks_deleted}
     except HTTPException:
         raise
     except Exception as e:
@@ -234,6 +237,15 @@ async def get_task_detail(task_id: str):
     if not task:
         raise HTTPException(404, "Task not found")
     return task
+
+
+@app.delete("/codex/tasks/{task_id}")
+async def delete_task_endpoint(task_id: str):
+    """Delete a single task from the DB. Running tasks should be interrupted first."""
+    deleted = await delete_task(task_id)
+    if not deleted:
+        raise HTTPException(404, "Task not found")
+    return {"deleted": task_id}
 
 
 @app.get("/codex/tasks/{task_id}/events")

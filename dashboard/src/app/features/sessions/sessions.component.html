@@ -1,7 +1,17 @@
 <div class="sessions">
   <div class="sessions-header">
     <h1>Codex Sessions</h1>
-    <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">Refresh</button>
+    <div class="header-actions">
+      @if (selected().size > 0) {
+        <span class="selection-count">{{ selected().size }} selected</span>
+        <button type="button" class="btn-bulk-delete" (click)="deleteSelected()" [disabled]="bulkDeleting()">
+          {{ bulkDeleting() ? 'Deleting…' : 'Delete selected' }}
+        </button>
+      }
+      <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">
+        {{ loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+    </div>
   </div>
 
   @if (error()) {
@@ -13,24 +23,50 @@
       <table class="sessions-table">
         <thead>
           <tr>
-            <th>Session ID</th>
-            <th>Timestamp</th>
-            <th>CWD</th>
-            <th>Model</th>
+            <th class="check-cell">
+              <input
+                type="checkbox"
+                class="row-check"
+                [checked]="allSelected()"
+                [indeterminate]="someSelected()"
+                (change)="toggleSelectAll($event)"
+                title="Select all"
+              />
+            </th>
             <th>Status</th>
-            <th>Last activity</th>
+            <th>Project</th>
+            <th>Session ID</th>
+            <th>Last active</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           @for (s of sessions(); track s.session_id) {
-            <tr class="session-row" (click)="openThread(s)" title="Open thread">
-              <td class="mono">{{ truncateId(s.session_id) }}</td>
-              <td>{{ s.timestamp ?? '—' }}</td>
-              <td class="cwd">{{ s.cwd ?? '—' }}</td>
-              <td>{{ s.model ?? '—' }}</td>
-              <td><span class="badge" [class]="statusClass(s.status)">{{ s.status ?? '—' }}</span></td>
-              <td>{{ formatTime(s.last_activity_ts ?? s.last_activity) }}</td>
+            <tr
+              class="session-row"
+              [ngClass]="{ selected: isSelected(s.session_id) }"
+              (click)="openThread(s)"
+              title="Open thread"
+            >
+              <td class="check-cell" (click)="toggleSelect($event, s.session_id)">
+                <input
+                  type="checkbox"
+                  class="row-check"
+                  [checked]="isSelected(s.session_id)"
+                  (change)="toggleSelect($event, s.session_id)"
+                />
+              </td>
+              <td class="status-cell">
+                <span class="badge" [ngClass]="statusClass(s.status)">{{ s.status ?? '—' }}</span>
+              </td>
+              <td class="project-cell">
+                <span class="project-name">{{ projectName(s.cwd) }}</span>
+                @if (s.cwd) {
+                  <span class="project-cwd" [title]="s.cwd">{{ s.cwd }}</span>
+                }
+              </td>
+              <td class="id-cell mono" [title]="s.session_id">{{ truncateId(s.session_id) }}</td>
+              <td class="time-cell">{{ formatTime(s.last_activity_ts ?? s.last_activity) }}</td>
               <td class="actions-cell">
                 <button
                   type="button"

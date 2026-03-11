@@ -6,6 +6,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { MarkdownPipe } from '../../core/pipes/markdown.pipe';
 
 const POLL_MS = 3_000;
+const BG_POLL_MS = 5_000;
 const THINKING_TIMEOUT_MS = 5 * 60 * 1000;
 
 @Component({
@@ -39,13 +40,18 @@ export class ThreadComponent implements OnDestroy {
 
   private _thinkingInterval: ReturnType<typeof setInterval> | null = null;
   private _thinkingTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _bgPollInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
-    if (this.threadId) this.load();
+    if (this.threadId) {
+      this.load();
+      this._bgPollInterval = setInterval(() => this._bgPoll(), BG_POLL_MS);
+    }
   }
 
   ngOnDestroy(): void {
     this._stopThinkingPoll();
+    if (this._bgPollInterval) { clearInterval(this._bgPollInterval); this._bgPollInterval = null; }
   }
 
   load(): void {
@@ -106,6 +112,14 @@ export class ThreadComponent implements OnDestroy {
       this.thinking.set(false);
       this._stopThinkingPoll();
     }, THINKING_TIMEOUT_MS);
+  }
+
+  private _bgPoll(): void {
+    // Skip if the thinking poll is already running — it's faster and handles updates
+    if (this._thinkingInterval) return;
+    this.api.getThread(this.threadId).subscribe((res) => {
+      if (res?.thread) this.thread.set(res.thread);
+    });
   }
 
   private _stopThinkingPoll(): void {

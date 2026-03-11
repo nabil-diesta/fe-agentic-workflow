@@ -163,6 +163,15 @@ export class ApiService {
       );
   }
 
+  deleteTask(taskId: string): Observable<boolean> {
+    return this.http
+      .delete(`${this.listener()}/codex/tasks/${taskId}`)
+      .pipe(
+        map(() => true),
+        catchError(() => of(false)),
+      );
+  }
+
   getWorkdirs(): Observable<Workdir[] | null> {
     return this.http
       .get<{ workdirs: Workdir[] }>(`${this.listener()}/workdirs`)

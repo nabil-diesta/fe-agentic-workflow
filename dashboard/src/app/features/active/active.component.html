@@ -1,7 +1,27 @@
 <div class="active">
   <div class="active-header">
-    <h1>All Tasks</h1>
-    <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">Refresh</button>
+    <div class="header-left">
+      <input
+        type="checkbox"
+        class="select-all-check"
+        [checked]="allSelected()"
+        [indeterminate]="someSelected()"
+        (change)="toggleSelectAll()"
+        title="Select all"
+      />
+      <h1>All Tasks</h1>
+    </div>
+    <div class="header-actions">
+      @if (selected().size > 0) {
+        <span class="selection-count">{{ selected().size }} selected</span>
+        <button type="button" class="btn-bulk-delete" (click)="deleteSelected()" [disabled]="bulkDeleting()">
+          {{ bulkDeleting() ? 'Deleting…' : 'Delete selected' }}
+        </button>
+      }
+      <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">
+        {{ loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+    </div>
   </div>
 
   @if (error()) {
@@ -13,10 +33,17 @@
   } @else {
     <div class="task-cards">
       @for (task of tasks(); track task.task_id) {
-        <div class="task-card" [class.expanded]="isExpanded(task.task_id)">
+        <div class="task-card" [class.expanded]="isExpanded(task.task_id)" [class.selected]="isSelected(task.task_id)">
 
           <!-- Header row: click to expand -->
           <div class="card-header" (click)="toggleExpand(task.task_id)">
+            <input
+              type="checkbox"
+              class="card-check"
+              [checked]="isSelected(task.task_id)"
+              (change)="toggleSelect(task.task_id)"
+              (click)="$event.stopPropagation()"
+            />
             <div class="task-status" [ngClass]="statusClass(task.status)">
               <span class="dot"></span>
               <span>{{ statusLabel(task.status) }}</span>
@@ -25,6 +52,13 @@
               <span class="task-key">{{ task.ticket_key }}</span>
             }
             <span class="task-desc flex-1">{{ truncate(task.task) }}</span>
+            <button
+              type="button"
+              class="btn-delete-card"
+              (click)="deleteTask($event, task)"
+              [disabled]="deletingId() === task.task_id || task.status === 'running'"
+              [title]="task.status === 'running' ? 'Interrupt before deleting' : 'Delete task'"
+            >{{ deletingId() === task.task_id ? '…' : '✕' }}</button>
             <span class="expand-icon">{{ isExpanded(task.task_id) ? '▲' : '▼' }}</span>
           </div>
 

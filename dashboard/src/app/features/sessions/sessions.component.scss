@@ -6,6 +6,29 @@
   h1 { margin: 0; font-size: 1.5rem; }
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.selection-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.btn-bulk-delete {
+  padding: 0.5rem 1rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.875rem;
+  &:hover:not(:disabled) { background: #b91c1c; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
 .btn-refresh {
   padding: 0.5rem 1rem;
   background: var(--accent);
@@ -34,18 +57,77 @@
   border-collapse: collapse;
   font-size: 0.9rem;
   th, td {
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 1rem;
     text-align: left;
     border-bottom: 1px solid var(--border);
   }
   th {
     background: var(--bg-secondary);
     font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--text-secondary);
   }
   tr:last-child td { border-bottom: none; }
-  .mono { font-family: ui-monospace, monospace; }
-  .cwd { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.status-cell { width: 90px; }
+
+.project-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.project-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-cwd {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+}
+
+.id-cell {
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  width: 110px;
+}
+
+.time-cell {
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  width: 130px;
+}
+
+.mono { font-family: ui-monospace, monospace; }
+
+.check-cell {
+  width: 36px;
+  padding: 0.4rem 0.5rem !important;
+  text-align: center;
+  cursor: default;
+}
+
+.row-check {
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
 }
 
 .session-row {
@@ -53,6 +135,8 @@
   transition: background 0.1s;
   td { transition: background 0.1s; }
   &:hover td { background: var(--bg-secondary); }
+  &.selected td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  &.selected:hover td { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 }
 
 .actions-cell {
