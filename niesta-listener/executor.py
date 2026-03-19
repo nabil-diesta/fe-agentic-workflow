@@ -251,8 +251,14 @@ async def resume_task(thread_id: str, prompt: str) -> dict:
 
 
 async def interrupt_task(thread_id: str, turn_id: str) -> dict:
-    """Interrupt a running turn."""
-    result = await codex_server.interrupt_turn(thread_id, turn_id)
+    """Interrupt a running turn. Always updates DB even if the app-server times out
+    (the turn may have already completed and not respond to interrupt)."""
+    result: dict = {}
+    try:
+        result = await codex_server.interrupt_turn(thread_id, turn_id)
+    except Exception as e:
+        # Timeout or error — turn likely already finished; treat as interrupted.
+        logger.warning("interrupt_turn %s/%s: %s (marking interrupted anyway)", thread_id, turn_id, e)
 
     async with aiosqlite.connect(str(DB_PATH)) as db:
         await db.execute(
@@ -266,7 +272,7 @@ async def interrupt_task(thread_id: str, turn_id: str) -> dict:
         )
         await db.commit()
 
-    return result
+    return result or {"interrupted": True}
 
 
 async def get_task_events(thread_id: str) -> List[dict]:

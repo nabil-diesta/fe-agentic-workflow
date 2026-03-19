@@ -13,7 +13,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from config import LISTENER_PORT
+import httpx
+
+from config import LISTENER_PORT, NIESTA_API_URL
 from executor import (
     init_executor,
     run_codex_task,
@@ -91,6 +93,21 @@ class JiraQueryBody(BaseModel):
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok", "port": LISTENER_PORT}
+
+
+@app.post("/niesta/chat")
+async def niesta_chat_proxy(body: dict) -> dict:
+    """Proxy chat requests to the Niesta agent, avoiding browser cross-origin issues."""
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(f"{NIESTA_API_URL}/chat", json=body)
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        logger.exception("POST /niesta/chat proxy error: %s", e)
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @app.get("/sessions")
@@ -214,8 +231,12 @@ async def interrupt_codex_task(body: dict):
     turn_id = body.get("turn_id")
     if not thread_id or not turn_id:
         raise HTTPException(400, "thread_id and turn_id are required")
-    result = await interrupt_task(thread_id, turn_id)
-    return result
+    try:
+        result = await interrupt_task(thread_id, turn_id)
+        return result
+    except Exception as e:
+        logger.exception("POST /codex/interrupt: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/codex/tasks")

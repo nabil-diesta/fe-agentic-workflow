@@ -13,6 +13,27 @@ _cache: Optional[List[dict]] = None
 _cache_time: float = 0
 
 
+def _extract_user_text(content: list) -> Optional[str]:
+    """Pull plain text from a response_item content block list, skipping injections."""
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") not in ("input_text", "text"):
+            continue
+        text = (block.get("text") or "").strip()
+        # Skip AGENTS.md injections, XML-style system context, and tool warnings
+        if (
+            not text
+            or text.startswith("# AGENTS.md")
+            or text.startswith("<")
+            or text.startswith("Warning:")
+            or text.startswith("Error:")
+        ):
+            continue
+        return text
+    return None
+
+
 def _parse_session_file(path: Path) -> Optional[dict]:
     """Parse a single .jsonl session file. Returns None on any error."""
     try:
@@ -28,6 +49,9 @@ def _parse_session_file(path: Path) -> Optional[dict]:
         rate_limits = None
         last_token_count = None
         last_limits = {}
+        first_message: Optional[str] = None  # first real user prompt
+        last_agent_message: Optional[str] = None  # last assistant reply snippet
+
         for line in path.read_text(encoding="utf-8", errors="replace").strip().splitlines():
             if not line.strip():
                 continue
@@ -41,6 +65,7 @@ def _parse_session_file(path: Path) -> Optional[dict]:
             payload = obj.get("payload") or obj.get("data") or {}
             if not isinstance(payload, dict):
                 payload = {}
+
             if "session_meta" in event or event == "session_meta":
                 meta = payload if isinstance(payload, dict) else {}
                 session_id = meta.get("id") or session_id
@@ -48,15 +73,35 @@ def _parse_session_file(path: Path) -> Optional[dict]:
                 cwd = meta.get("cwd") or cwd
                 model = meta.get("model_provider") or model
                 cli_version = meta.get("cli_version") or cli_version
+
             if "token_count" in event or event == "token_count":
                 last_token_count = payload if isinstance(payload, dict) else last_token_count
+
             if "rate_limit" in event or "rate_limit" in str(payload).lower():
                 limits = payload if isinstance(payload, dict) else {}
                 used = limits.get("used_percent")
                 if used is not None:
                     key = limits.get("limit_type") or "primary"
                     last_limits[key] = used
+
+            # Extract first user prompt and last agent reply from response_item events
+            if event == "response_item":
+                role = payload.get("role")
+                content = payload.get("content") or []
+                if role == "user" and first_message is None:
+                    first_message = _extract_user_text(content)
+                elif role == "assistant":
+                    for block in content:
+                        if not isinstance(block, dict):
+                            continue
+                        if block.get("type") in ("output_text", "text"):
+                            text = (block.get("text") or "").strip()
+                            if text:
+                                last_agent_message = text
+                                break
+
             last_activity = obj.get("timestamp") or obj.get("ts") or last_activity
+
         if last_token_count:
             token_usage = {
                 "input": last_token_count.get("input"),
@@ -93,6 +138,8 @@ def _parse_session_file(path: Path) -> Optional[dict]:
             "rate_limits": rate_limits,
             "status": status,
             "path": str(path),
+            "first_message": first_message,
+            "last_agent_message": last_agent_message,
         }
     except Exception as e:
         logger.warning("Failed to parse session file %s: %s", path, e)

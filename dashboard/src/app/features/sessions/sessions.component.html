@@ -34,8 +34,8 @@
               />
             </th>
             <th>Status</th>
+            <th>Task</th>
             <th>Project</th>
-            <th>Session ID</th>
             <th>Last active</th>
             <th></th>
           </tr>
@@ -59,13 +59,22 @@
               <td class="status-cell">
                 <span class="badge" [ngClass]="statusClass(s.status)">{{ s.status ?? '—' }}</span>
               </td>
+              <td class="task-cell">
+                @if (s.first_message) {
+                  <span class="task-summary" [title]="s.first_message">{{ truncate(s.first_message, 90) }}</span>
+                } @else {
+                  <span class="task-empty">No task recorded</span>
+                }
+                @if (s.last_agent_message) {
+                  <span class="task-reply" [title]="s.last_agent_message">↳ {{ truncate(s.last_agent_message, 80) }}</span>
+                }
+              </td>
               <td class="project-cell">
                 <span class="project-name">{{ projectName(s.cwd) }}</span>
                 @if (s.cwd) {
                   <span class="project-cwd" [title]="s.cwd">{{ s.cwd }}</span>
                 }
               </td>
-              <td class="id-cell mono" [title]="s.session_id">{{ truncateId(s.session_id) }}</td>
               <td class="time-cell">{{ formatTime(s.last_activity_ts ?? s.last_activity) }}</td>
               <td class="actions-cell">
                 <button

@@ -132,6 +132,11 @@ export class SessionsComponent {
     return id.length > 12 ? id.slice(0, 8) + '…' : id;
   }
 
+  truncate(s: string | undefined, max: number): string {
+    if (!s) return '—';
+    return s.length <= max ? s : s.slice(0, max) + '…';
+  }
+
   formatTime(ts: string | number | undefined): string {
     if (ts == null) return '—';
     const t = typeof ts === 'string' ? parseFloat(ts) : ts;

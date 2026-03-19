@@ -35,6 +35,10 @@ export interface CodexSession {
   /** Unix timestamp for relative time display */
   last_activity_ts?: number;
   path?: string;
+  /** First user prompt in the session — the initial task description */
+  first_message?: string;
+  /** Last agent reply snippet */
+  last_agent_message?: string;
 }
 
 export interface CodexTask {
@@ -128,7 +132,7 @@ export class ApiService {
 
   chatWithNiesta(message: string): Observable<{ response?: string; skills_used?: string[] } | null> {
     return this.http
-      .post<{ response?: string; skills_used?: string[] }>(`${this.niesta()}/chat`, {
+      .post<{ response?: string; skills_used?: string[] }>(`${this.listener()}/niesta/chat`, {
         message,
         session_id: 'default',
       })

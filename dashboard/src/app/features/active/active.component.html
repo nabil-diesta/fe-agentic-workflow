@@ -75,10 +75,26 @@
           <div class="task-actions">
             <button type="button" class="btn-checkin" (click)="checkIn(task)">Check In</button>
             @if (task.status === 'running') {
-              <button type="button" class="btn-interrupt" (click)="interrupt(task)">Interrupt</button>
+              <button
+                type="button"
+                class="btn-interrupt"
+                (click)="interrupt(task)"
+                [disabled]="interruptingId() === task.task_id"
+              >
+                @if (interruptingId() === task.task_id) {
+                  <span class="btn-spinner"></span> Interrupting…
+                } @else {
+                  Interrupt
+                }
+              </button>
             }
             @if (task.status !== 'running') {
-              <button type="button" class="btn-resume" (click)="openResume(task)">Resume</button>
+              <button
+                type="button"
+                class="btn-resume"
+                (click)="openResume(task)"
+                [disabled]="resumeSubmitting() && resumeTaskId() === task.task_id"
+              >Resume</button>
             }
           </div>
 
@@ -138,7 +154,13 @@
           class="btn-primary"
           (click)="submitResume()"
           [disabled]="resumeSubmitting() || !resumePrompt().trim()"
-        >Resume</button>
+        >
+          @if (resumeSubmitting()) {
+            <span class="btn-spinner"></span> Resuming…
+          } @else {
+            Resume
+          }
+        </button>
       </div>
     </div>
   }

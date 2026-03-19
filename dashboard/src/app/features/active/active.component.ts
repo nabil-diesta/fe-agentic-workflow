@@ -33,6 +33,7 @@ export class ActiveComponent {
   readonly selected = signal<Set<string>>(new Set());
   readonly deletingId = signal<string | null>(null);
   readonly bulkDeleting = signal(false);
+  readonly interruptingId = signal<string | null>(null);
 
   readonly allSelected = computed(() => {
     const t = this.tasks();
@@ -129,7 +130,10 @@ export class ActiveComponent {
   }
 
   interrupt(task: CodexTask): void {
+    if (this.interruptingId() === task.task_id) return;
+    this.interruptingId.set(task.task_id);
     this.api.interruptCodex(task.thread_id, task.turn_id).subscribe((res) => {
+      this.interruptingId.set(null);
       if (res !== null) {
         this.toast.show(`Interrupted ${task.ticket_key ?? task.task_id}`);
         this.load();

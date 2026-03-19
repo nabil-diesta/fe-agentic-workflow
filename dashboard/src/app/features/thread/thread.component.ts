@@ -1,5 +1,5 @@
 import { Component, inject, signal, computed, OnDestroy } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { NgClass } from '@angular/common';
 import { ApiService, CodexThread, ThreadItem } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -19,8 +19,7 @@ const THINKING_TIMEOUT_MS = 5 * 60 * 1000;
 export class ThreadComponent implements OnDestroy {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-  private readonly toast = inject(ToastService);
+private readonly toast = inject(ToastService);
 
   readonly thread = signal<CodexThread | null>(null);
   readonly loading = signal(true);
@@ -161,6 +160,6 @@ export class ThreadComponent implements OnDestroy {
   }
 
   goBack(): void {
-    this.router.navigate(['/active']);
+    window.history.back();
   }
 }

@@ -16,35 +16,61 @@ class CodexAppServer:
         self._event_listeners: List[Callable[[dict], Any]] = []
         self._reader_task: Optional[asyncio.Task] = None
         self._initialized = False
+        self._start_lock = asyncio.Lock()  # prevents concurrent restarts
 
     async def start(self):
-        """Spawn codex app-server and perform initialize handshake."""
-        if self._process and self._process.returncode is None:
+        """Spawn codex app-server and perform initialize handshake. Concurrent-safe."""
+        # Fast path — already running, no lock needed
+        if self._initialized and self._process and self._process.returncode is None:
             return
 
-        self._process = await asyncio.create_subprocess_exec(
-            "codex",
-            "app-server",
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        async with self._start_lock:
+            # Double-check after acquiring the lock (another coroutine may have started it)
+            if self._initialized and self._process and self._process.returncode is None:
+                return
 
-        self._reader_task = asyncio.create_task(self._read_loop())
+            self._initialized = False
 
-        await self._send_request(
-            "initialize",
-            {
-                "clientInfo": {
-                    "name": "niesta_listener",
-                    "title": "Niesta Listener",
-                    "version": "0.1.0",
+            self._process = await asyncio.create_subprocess_exec(
+                "codex",
+                "app-server",
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            self._reader_task = asyncio.create_task(self._read_loop())
+
+            # Send initialize directly — do NOT call _send_request here.
+            # _send_request checks _initialized (False) and calls start(), which
+            # would deadlock on _start_lock.
+            self._request_id += 1
+            rid = self._request_id
+            loop = asyncio.get_running_loop()
+            future: asyncio.Future = loop.create_future()
+            self._pending[rid] = future
+            await self._write(
+                {
+                    "method": "initialize",
+                    "id": rid,
+                    "params": {
+                        "clientInfo": {
+                            "name": "niesta_listener",
+                            "title": "Niesta Listener",
+                            "version": "0.1.0",
+                        }
+                    },
                 }
-            },
-        )
-        self._send_notification("initialized", {})
-        self._initialized = True
-        logger.info("Codex app-server initialized")
+            )
+            try:
+                await asyncio.wait_for(future, timeout=30)
+            except asyncio.TimeoutError:
+                self._pending.pop(rid, None)
+                raise TimeoutError("Codex app-server initialize timed out")
+
+            await self._send_notification("initialized", {})
+            self._initialized = True
+            logger.info("Codex app-server initialized")
 
     async def stop(self):
         """Shut down app-server process."""
@@ -55,11 +81,16 @@ class CodexAppServer:
             self._reader_task.cancel()
         self._initialized = False
 
-    def _send_notification(self, method: str, params: dict):
+    async def _send_notification(self, method: str, params: dict):
         msg = {"method": method, "params": params}
-        self._write(msg)
+        await self._write(msg)
 
-    async def _send_request(self, method: str, params: dict) -> Any:
+    async def _send_request(self, method: str, params: dict, timeout: float = 60) -> Any:
+        # Auto-restart if the subprocess has died
+        if not self._initialized or (self._process and self._process.returncode is not None):
+            logger.info("App-server not running, restarting before %s", method)
+            await self.start()
+
         self._request_id += 1
         rid = self._request_id
         msg = {"method": method, "id": rid, "params": params}
@@ -67,19 +98,20 @@ class CodexAppServer:
         loop = asyncio.get_running_loop()
         future: asyncio.Future = loop.create_future()
         self._pending[rid] = future
-        self._write(msg)
+        await self._write(msg)
 
         try:
-            return await asyncio.wait_for(future, timeout=300)
+            return await asyncio.wait_for(future, timeout=timeout)
         except asyncio.TimeoutError:
             self._pending.pop(rid, None)
-            raise TimeoutError(f"Request {method} (id={rid}) timed out")
+            raise TimeoutError(f"Request {method} (id={rid}) timed out after {timeout}s")
 
-    def _write(self, msg: dict):
+    async def _write(self, msg: dict):
         if not self._process or not self._process.stdin:
             raise RuntimeError("App server not running")
         line = json.dumps(msg) + "\n"
         self._process.stdin.write(line.encode())
+        await self._process.stdin.drain()
 
     async def _read_loop(self):
         try:
@@ -110,6 +142,20 @@ class CodexAppServer:
             pass
         except Exception as e:
             logger.exception("Read loop error: %s", e)
+        finally:
+            # Process exited — fail all waiting requests so they don't hang forever
+            if self._pending:
+                logger.warning(
+                    "App-server exited with %d pending requests — failing them",
+                    len(self._pending),
+                )
+                err = Exception("Codex app-server process exited unexpectedly")
+                for future in self._pending.values():
+                    if not future.done():
+                        future.set_exception(err)
+                self._pending.clear()
+            self._initialized = False
+            logger.info("Read loop exited; app-server marked as not initialized")
 
     def add_event_listener(self, callback: Callable[[dict], Any]):
         self._event_listeners.append(callback)
@@ -133,6 +179,7 @@ class CodexAppServer:
                 "approvalPolicy": approval_policy,
                 "sandbox": sandbox,
             },
+            timeout=30,
         )
 
     async def start_turn(self, thread_id: str, prompt: str, cwd: Optional[str] = None) -> dict:
@@ -142,32 +189,34 @@ class CodexAppServer:
         }
         if cwd:
             params["cwd"] = cwd
-        return await self._send_request("turn/start", params)
+        # Long timeout — AI processing can take several minutes
+        return await self._send_request("turn/start", params, timeout=300)
 
     async def resume_thread(self, thread_id: str) -> dict:
-        return await self._send_request("thread/resume", {"threadId": thread_id})
+        return await self._send_request("thread/resume", {"threadId": thread_id}, timeout=30)
 
     async def interrupt_turn(self, thread_id: str, turn_id: str) -> dict:
         return await self._send_request(
             "turn/interrupt",
             {"threadId": thread_id, "turnId": turn_id},
+            timeout=30,
         )
 
     async def read_thread(self, thread_id: str, include_turns: bool = True) -> dict:
         return await self._send_request(
             "thread/read",
             {"threadId": thread_id, "includeTurns": include_turns},
+            timeout=20,
         )
 
     async def list_threads(self, limit: int = 25, source_kinds: Optional[List[str]] = None) -> dict:
         params: Dict[str, Any] = {"limit": limit}
         if source_kinds:
             params["sourceKinds"] = source_kinds
-        return await self._send_request("thread/list", params)
+        return await self._send_request("thread/list", params, timeout=20)
 
     async def list_loaded_threads(self) -> dict:
-        return await self._send_request("thread/loaded/list", {})
+        return await self._send_request("thread/loaded/list", {}, timeout=20)
 
 
 codex_server = CodexAppServer()
-
