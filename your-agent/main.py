@@ -56,12 +56,23 @@ async def start_telegram_bot() -> None:
                 return
             text = update.message.text.strip()
             session_id = f"telegram_{update.effective_user.id if update.effective_user else 'unknown'}"
+
+            async def keep_typing(chat, stop_event):
+                while not stop_event.is_set():
+                    await chat.send_action(action="typing")
+                    await asyncio.sleep(4)
+
+            stop_typing = asyncio.Event()
+            typing_task = asyncio.create_task(keep_typing(update.message.chat, stop_typing))
             try:
                 response, skills_used = await process(text, session_id=session_id, source="telegram")
                 await update.message.reply_text(response[:4000])
             except Exception as e:
                 logger.exception("Telegram handler error: %s", e)
                 await update.message.reply_text("Something went wrong. Please try again.")
+            finally:
+                stop_typing.set()
+                typing_task.cancel()
 
         async def post_init(app: Application) -> None:
             app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
