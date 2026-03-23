@@ -1,0 +1,97 @@
+<div class="pipelines-view">
+  <div class="pipelines-header">
+    <h1 class="page-title">Pipelines</h1>
+    <span class="pipeline-count">{{ active().length + history().length }} total</span>
+  </div>
+
+  @if (loading() && active().length === 0 && history().length === 0) {
+    <p class="loading">Loading pipelines…</p>
+  } @else {
+
+    <!-- Active Pipelines -->
+    @if (active().length > 0) {
+      <section class="pipeline-section">
+        <h2 class="section-title">Active</h2>
+        <div class="pipeline-table">
+          <div class="pipeline-table-header">
+            <span>Ticket</span>
+            <span>Summary</span>
+            <span>Progress</span>
+            <span>Current Step</span>
+            <span>Status</span>
+            <span>Started</span>
+            <span></span>
+          </div>
+          @for (p of active(); track p.task.task_id) {
+            <div class="pipeline-row" (click)="open(p.task.task_id)">
+              <span class="col-ticket">{{ p.task.ticket_key ?? '—' }}</span>
+              <span class="col-summary">{{ p.task.task.replace('Pipeline: ', '') }}</span>
+              <span class="col-progress">
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill" [style.width.%]="progressPct(p)"></div>
+                </div>
+                <span class="progress-label">{{ stepProgress(p) }}</span>
+              </span>
+              <span class="col-step">{{ currentStepName(p) }}</span>
+              <span class="col-status">
+                <span class="status-badge" [class]="statusClass(p)">{{ statusLabel(p) }}</span>
+              </span>
+              <span class="col-time">{{ formatTime(p.task.created_at) }}</span>
+              <span class="col-actions">
+                <button type="button" class="btn-delete" (click)="delete($event, p.task.task_id)" [disabled]="deletingId() === p.task.task_id" title="Delete pipeline">
+                  {{ deletingId() === p.task.task_id ? '…' : '✕' }}
+                </button>
+              </span>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- History -->
+    @if (history().length > 0) {
+      <section class="pipeline-section">
+        <h2 class="section-title">History</h2>
+        <div class="pipeline-table">
+          <div class="pipeline-table-header">
+            <span>Ticket</span>
+            <span>Summary</span>
+            <span>Progress</span>
+            <span>Current Step</span>
+            <span>Status</span>
+            <span>Started</span>
+          </div>
+          @for (p of history(); track p.task.task_id) {
+            <div class="pipeline-row" (click)="open(p.task.task_id)">
+              <span class="col-ticket">{{ p.task.ticket_key ?? '—' }}</span>
+              <span class="col-summary">{{ p.task.task.replace('Pipeline: ', '') }}</span>
+              <span class="col-progress">
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill" [style.width.%]="progressPct(p)"></div>
+                </div>
+                <span class="progress-label">{{ stepProgress(p) }}</span>
+              </span>
+              <span class="col-step">{{ currentStepName(p) }}</span>
+              <span class="col-status">
+                <span class="status-badge" [class]="statusClass(p)">{{ statusLabel(p) }}</span>
+              </span>
+              <span class="col-time">{{ formatTime(p.task.created_at) }}</span>
+              <span class="col-actions">
+                <button type="button" class="btn-delete" (click)="delete($event, p.task.task_id)" [disabled]="deletingId() === p.task.task_id" title="Delete pipeline">
+                  {{ deletingId() === p.task.task_id ? '…' : '✕' }}
+                </button>
+              </span>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    @if (active().length === 0 && history().length === 0) {
+      <div class="empty-state">
+        <p>No pipelines yet. Start one from the Sprint Board.</p>
+      </div>
+    }
+
+  }
+</div>

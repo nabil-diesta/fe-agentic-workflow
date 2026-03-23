@@ -1,0 +1,139 @@
+<div class="pipeline-view">
+
+  <!-- Header -->
+  <div class="pipeline-header">
+    <div class="pipeline-header-left">
+      <button type="button" class="btn-back" (click)="router.navigate(['/sprint'])">← Sprint</button>
+      @if (pipeline(); as p) {
+        <div>
+          <h1 class="pipeline-title">{{ p.task.ticket_key }} — Pipeline</h1>
+          <span class="pipeline-subtitle">{{ p.task.task.replace('Pipeline: ', '') }}</span>
+        </div>
+      } @else {
+        <h1 class="pipeline-title">Pipeline</h1>
+      }
+    </div>
+    @if (pipeline(); as p) {
+      <span class="pipeline-status-badge" [class]="'status-badge-' + p.task.status">
+        {{ taskStatusLabel() }}
+      </span>
+    }
+  </div>
+
+  @if (loading() && !pipeline()) {
+    <p class="loading">Loading pipeline…</p>
+  } @else if (error() && !pipeline()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (pipeline(); as p) {
+
+    <div class="steps-container">
+      @for (step of steps(); track step.step_number) {
+
+        <!-- Approval Gate between step 5 and step 6 -->
+        @if (step.step_number === 6) {
+          <div class="approval-gate" [class.gate-active]="isAwaitingApproval()">
+            <div class="gate-content">
+              <span class="gate-title">═══ APPROVAL GATE ═══</span>
+              @if (isAwaitingApproval()) {
+                <p class="gate-text">All planning steps complete. Review the plan above before coding begins.</p>
+                <button
+                  type="button"
+                  class="btn-approve-all"
+                  (click)="approveAll()"
+                  [disabled]="approvingAll()"
+                >
+                  {{ approvingAll() ? 'Starting…' : '✓ Approve Plan & Start Coding' }}
+                </button>
+              } @else if (p.task.status === 'running' || p.task.status === 'completed' || p.task.status === 'failed') {
+                <p class="gate-text gate-passed">Plan approved — coding phase active.</p>
+              } @else {
+                <p class="gate-text gate-waiting">Waiting for planning steps to complete…</p>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Step Card -->
+        <div class="step-card" [class]="'step-card ' + statusClass(step.status)">
+          <div class="step-header">
+            <div class="step-header-left">
+              <span class="step-indicator" [class]="statusClass(step.status)">
+                @if (step.status === 'running') {
+                  <span class="step-pulse"></span>
+                } @else {
+                  {{ statusIcon(step.status) }}
+                }
+              </span>
+              <div>
+                <span class="step-number">Step {{ step.step_number }}</span>
+                <span class="step-name">{{ step.step_name }}</span>
+              </div>
+            </div>
+            <div class="step-header-right">
+              <span class="step-status-label" [class]="statusClass(step.status)">
+                {{ step.status | uppercase }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Step Body -->
+          @if (step.status !== 'pending' && step.status !== 'skipped') {
+            <div class="step-body">
+
+              @if (step.status === 'running') {
+                <div class="step-running">
+                  <span class="running-dot"></span>
+                  <span>Running…</span>
+                </div>
+              }
+
+              <!-- Edit mode -->
+              @if (editingStep() === step.step_number) {
+                <textarea
+                  class="step-edit-area"
+                  [value]="editText()"
+                  (input)="editText.set($any($event.target).value)"
+                  rows="10"
+                ></textarea>
+                <div class="step-edit-actions">
+                  <button type="button" class="btn-sm btn-secondary" (click)="cancelEdit()">Cancel</button>
+                  <button type="button" class="btn-sm btn-primary" (click)="saveEdit(step.step_number)">Save</button>
+                </div>
+              } @else if (step.output) {
+                <div class="step-output markdown-body" [innerHTML]="step.output | markdown"></div>
+              }
+
+            </div>
+          }
+
+          <!-- Step Actions -->
+          @if (step.status === 'completed' || step.status === 'failed') {
+            <div class="step-actions">
+              @if (isEditable(step) && editingStep() !== step.step_number) {
+                <button type="button" class="btn-sm btn-ghost" (click)="startEdit(step)">Edit</button>
+              }
+              @if (isRerunnable(step)) {
+                <button
+                  type="button"
+                  class="btn-sm btn-ghost"
+                  (click)="rerun(step.step_number)"
+                  [disabled]="rerunningStep() === step.step_number"
+                >
+                  {{ rerunningStep() === step.step_number ? 'Running…' : 'Rerun' }}
+                </button>
+              }
+              @if (step.step_number === 9 && step.status === 'completed') {
+                <button type="button" class="btn-sm btn-primary" (click)="copyPr()">
+                  Copy PR Description
+                </button>
+              }
+            </div>
+          }
+
+        </div>
+
+      }
+    </div>
+
+  }
+</div>

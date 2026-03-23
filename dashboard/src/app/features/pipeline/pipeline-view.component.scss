@@ -1,0 +1,326 @@
+.pipeline-view {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+
+.pipeline-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.pipeline-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.btn-back {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: 0.2rem;
+  &:hover { background: var(--bg-secondary); color: var(--text-primary); }
+}
+
+.pipeline-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.pipeline-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.pipeline-status-badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-top: 0.4rem;
+  &.status-badge-pipeline       { background: #dbeafe; color: #1e40af; }
+  &.status-badge-awaiting_approval { background: #fef9c3; color: #854d0e; }
+  &.status-badge-running        { background: #ede9fe; color: #5b21b6; }
+  &.status-badge-completed      { background: #dcfce7; color: #166534; }
+  &.status-badge-failed         { background: #fee2e2; color: #991b1b; }
+}
+
+[data-theme='dark'] .pipeline-status-badge {
+  &.status-badge-pipeline       { background: #1e3a8a; color: #93c5fd; }
+  &.status-badge-awaiting_approval { background: #713f12; color: #fde68a; }
+  &.status-badge-running        { background: #3b0764; color: #d8b4fe; }
+  &.status-badge-completed      { background: #14532d; color: #86efac; }
+  &.status-badge-failed         { background: #7f1d1d; color: #fca5a5; }
+}
+
+/* ── Steps ───────────────────────────────────────────── */
+
+.steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 1.35rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+}
+
+.step-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 0.75rem;
+  margin-left: 3rem;
+  transition: box-shadow 0.2s;
+  z-index: 1;
+
+  &.status-running  { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent); }
+  &.status-completed { border-color: #22c55e40; }
+  &.status-approved  { border-color: #16a34a60; }
+  &.status-failed    { border-color: #ef444440; }
+  &.status-skipped   { opacity: 0.5; }
+  &.status-pending   { opacity: 0.6; }
+}
+
+/* ── Step Header ─────────────────────────────────────── */
+
+.step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem;
+}
+
+.step-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.step-indicator {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  position: absolute;
+  left: -2.85rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  z-index: 2;
+
+  &.status-pending   { border-color: var(--border); color: var(--text-secondary); }
+  &.status-running   { border-color: var(--accent); background: var(--accent); color: white; }
+  &.status-completed { border-color: #22c55e; background: #22c55e; color: white; }
+  &.status-approved  { border-color: #16a34a; background: #16a34a; color: white; }
+  &.status-failed    { border-color: #ef4444; background: #ef4444; color: white; }
+  &.status-skipped   { border-color: var(--border); color: var(--text-secondary); }
+}
+
+.step-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+.step-number {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: block;
+  line-height: 1;
+}
+
+.step-name {
+  font-size: 1rem;
+  font-weight: 600;
+  display: block;
+}
+
+.step-status-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  &.status-pending   { color: var(--text-secondary); }
+  &.status-running   { color: var(--accent); }
+  &.status-completed { color: #22c55e; }
+  &.status-approved  { color: #16a34a; }
+  &.status-failed    { color: #ef4444; }
+  &.status-skipped   { color: var(--text-secondary); }
+}
+
+/* ── Step Body ───────────────────────────────────────── */
+
+.step-body {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.step-running {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.running-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.step-output {
+  margin: 0.75rem 0 0;
+}
+
+.step-edit-area {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 0.875rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.step-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+/* ── Step Actions ────────────────────────────────────── */
+
+.step-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+
+.btn-sm {
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-ghost {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  &:hover:not(:disabled) { background: var(--border); }
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  &:hover:not(:disabled) { background: var(--accent-hover); }
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  &:hover { background: var(--border); }
+}
+
+/* ── Approval Gate ───────────────────────────────────── */
+
+.approval-gate {
+  margin: 0.75rem 0 0.75rem 3rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  text-align: center;
+  background: var(--bg-secondary);
+  z-index: 1;
+  position: relative;
+  transition: border-color 0.3s, background 0.3s;
+
+  &.gate-active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 5%, var(--bg-secondary));
+  }
+}
+
+.gate-title {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.gate-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem;
+  &.gate-passed  { color: #22c55e; }
+  &.gate-waiting { color: var(--text-secondary); }
+}
+
+.btn-approve-all {
+  padding: 0.6rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  &:hover:not(:disabled) { background: var(--accent-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+/* ── Misc ────────────────────────────────────────────── */
+
+.loading { color: var(--text-secondary); }
+.error   { color: #ef4444; }

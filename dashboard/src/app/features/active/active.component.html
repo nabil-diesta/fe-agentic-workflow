@@ -73,7 +73,7 @@
 
           <!-- Action buttons -->
           <div class="task-actions">
-            <button type="button" class="btn-checkin" (click)="checkIn(task)">Check In</button>
+            <button type="button" class="btn-checkin" (click)="checkIn(task)" [disabled]="!task.thread_id" [title]="task.thread_id ? 'View thread' : 'No thread available'">Check In</button>
             @if (task.status === 'running') {
               <button
                 type="button"
@@ -93,7 +93,8 @@
                 type="button"
                 class="btn-resume"
                 (click)="openResume(task)"
-                [disabled]="resumeSubmitting() && resumeTaskId() === task.task_id"
+                [disabled]="(resumeSubmitting() && resumeTaskId() === task.task_id) || !task.thread_id"
+                [title]="task.thread_id ? 'Resume task' : 'No thread available'"
               >Resume</button>
             }
           </div>

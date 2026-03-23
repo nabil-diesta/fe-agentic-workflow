@@ -184,6 +184,18 @@
   gap: 0.5rem;
 }
 
+.btn-start-pipeline {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.9rem;
+  &:hover { background: var(--border); }
+}
+
 .btn-start-work {
   padding: 0.5rem 1rem;
   background: var(--accent);
@@ -194,6 +206,34 @@
   cursor: pointer;
   font-size: 0.9rem;
   &:hover { background: var(--accent-hover); }
+}
+
+.pipeline-mini {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.pipeline-mini-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pipeline-mini-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.pipeline-mini-label {
+  font-size: 0.7rem;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 .btn-close {

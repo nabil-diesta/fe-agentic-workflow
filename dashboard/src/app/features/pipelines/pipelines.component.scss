@@ -1,0 +1,197 @@
+.pipelines-view {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+
+.pipelines-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.pipeline-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.2rem 0.6rem;
+}
+
+/* ── Section ─────────────────────────────────────────── */
+
+.pipeline-section {
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+}
+
+/* ── Table ───────────────────────────────────────────── */
+
+.pipeline-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.pipeline-table-header {
+  display: grid;
+  grid-template-columns: 100px 1fr 160px 160px 140px 140px 40px;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.pipeline-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 160px 160px 140px 140px 40px;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--bg-secondary); }
+}
+
+.col-ticket {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.col-summary {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progress-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 30px;
+}
+
+.col-step {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-status { }
+
+.col-time {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Status Badge ─────────────────────────────────────── */
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.badge-planning  { background: #dbeafe; color: #1e40af; }
+  &.badge-approval  { background: #fef9c3; color: #854d0e; }
+  &.badge-running   { background: #ede9fe; color: #5b21b6; }
+  &.badge-complete  { background: #dcfce7; color: #166534; }
+  &.badge-failed    { background: #fee2e2; color: #991b1b; }
+}
+
+[data-theme='dark'] .status-badge {
+  &.badge-planning  { background: #1e3a8a; color: #93c5fd; }
+  &.badge-approval  { background: #713f12; color: #fde68a; }
+  &.badge-running   { background: #3b0764; color: #d8b4fe; }
+  &.badge-complete  { background: #14532d; color: #86efac; }
+  &.badge-failed    { background: #7f1d1d; color: #fca5a5; }
+}
+
+/* ── Actions ─────────────────────────────────────────── */
+
+.col-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius);
+  line-height: 1;
+  &:hover:not(:disabled) { color: #ef4444; background: #fee2e2; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+/* ── Empty / Loading ─────────────────────────────────── */
+
+.loading { color: var(--text-secondary); }
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}

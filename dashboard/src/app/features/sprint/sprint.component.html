@@ -22,6 +22,14 @@
                   @if (hasCodexWorking(t.key)) {
                     <span class="codex-working"><span class="codex-dot"></span> Codex working...</span>
                   }
+                  @if (pipelineForTicket(t.key); as p) {
+                    <div class="pipeline-mini">
+                      <div class="pipeline-mini-bar">
+                        <div class="pipeline-mini-fill" [style.width.%]="pipelineProgressPct(p)"></div>
+                      </div>
+                      <span class="pipeline-mini-label">Pipeline {{ pipelineProgressPct(p) }}%</span>
+                    </div>
+                  }
                   <span class="card-summary">{{ t.summary || '—' }}</span>
                   <div class="badges">
                     @if (t.priority) {
@@ -47,6 +55,7 @@
         <h2>Ticket</h2>
         <div class="detail-header-actions">
           @if (detailTicket(); as t) {
+            <button type="button" class="btn-start-pipeline" (click)="openStartPipelineModal()">Start Pipeline</button>
             <button type="button" class="btn-start-work" (click)="openStartWorkModal()">Start Work</button>
           }
           <button type="button" class="btn-close" (click)="closeDetail()">×</button>
@@ -86,6 +95,37 @@
         </div>
       }
     </aside>
+  }
+
+  @if (showStartPipelineModal() && detailTicket(); as t) {
+    <div class="modal-overlay" (click)="closeStartPipelineModal()"></div>
+    <div class="modal" role="dialog">
+      <h3>Start Pipeline on {{ t.key }}: {{ t.summary }}</h3>
+      @if (t.description) {
+        <div class="modal-description">
+          <strong>Description</strong>
+          <p>{{ t.description }}</p>
+        </div>
+      }
+      <label class="modal-label">
+        <span>Working Directory</span>
+        @if (workdirs().length) {
+          <select [value]="startPipelineCwd()" (change)="startPipelineCwd.set($any($event.target).value)">
+            @for (dir of workdirs(); track dir.path) {
+              <option [value]="dir.path">{{ dir.label }} — {{ dir.path }}</option>
+            }
+          </select>
+        } @else {
+          <input type="text" [value]="startPipelineCwd()" (input)="startPipelineCwd.set($any($event.target).value)" placeholder="/path/to/repo" />
+        }
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeStartPipelineModal()">Cancel</button>
+        <button type="button" class="btn-primary" (click)="submitStartPipeline()" [disabled]="startPipelineSubmitting()">
+          {{ startPipelineSubmitting() ? 'Starting…' : 'Start Pipeline' }}
+        </button>
+      </div>
+    </div>
   }
 
   @if (showStartWorkModal() && detailTicket(); as t) {

@@ -116,6 +116,10 @@ export class ActiveComponent {
     if (!taskId || !prompt) return;
     const task = this.tasks().find(t => t.task_id === taskId);
     if (!task) return;
+    if (!task.thread_id) {
+      this.toast.show('No thread ID — cannot resume this task.');
+      return;
+    }
     this.resumeSubmitting.set(true);
     this.api.resumeCodex(task.thread_id, prompt).subscribe((res) => {
       this.resumeSubmitting.set(false);
@@ -180,6 +184,10 @@ export class ActiveComponent {
   parseTicketKey = parseTicketKeyFromTask;
 
   checkIn(task: CodexTask): void {
+    if (!task.thread_id) {
+      this.toast.show('No thread ID — cannot check in to this task.');
+      return;
+    }
     this.router.navigate(['/thread', task.thread_id]);
   }
 

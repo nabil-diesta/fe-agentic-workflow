@@ -1,0 +1,524 @@
+<div class="guide-layout">
+
+  <!-- Sticky Table of Contents -->
+  <nav class="toc" aria-label="Table of contents">
+    <span class="toc-title">On this page</span>
+    <ul class="toc-list">
+      @for (s of sections; track s.id) {
+        <li>
+          <button
+            type="button"
+            class="toc-item"
+            [class.active]="activeSection() === s.id"
+            (click)="scrollTo(s.id)"
+          >{{ s.label }}</button>
+        </li>
+      }
+    </ul>
+  </nav>
+
+  <!-- Main content -->
+  <main class="guide-content">
+
+    <!-- ── Section 1: How It Works ────────────────────── -->
+    <section id="how-it-works" class="guide-section">
+      <h2>How the Agentic Workflow Works</h2>
+      <p>
+        Niesta connects your Jira board to an AI pipeline that handles the full engineering process —
+        from reading a ticket to writing code and generating a PR. OpenAI plans and documents;
+        Codex CLI writes and tests the actual code. You stay in control with a mandatory approval
+        gate before any code is touched.
+      </p>
+      <p>
+        Each pipeline runs as a background process. You can open, close, and revisit the pipeline
+        view at any time — steps update in real time and the pipeline keeps running whether the
+        dashboard is open or not.
+      </p>
+
+      <!-- Interactive flow diagram -->
+      <div class="flow-diagram-wrap">
+        <!-- Phase pills row -->
+        <div class="flow-track" role="tablist" aria-label="Pipeline phases">
+
+          <button type="button" role="tab"
+            class="flow-pill phase-planning"
+            [class.active]="selectedPhase() === 'planning'"
+            (click)="selectPhase('planning')"
+            aria-controls="phase-detail">
+            <span class="pill-icon">🧠</span>
+            <span class="pill-body">
+              <span class="pill-label">Planning</span>
+              <span class="pill-steps">Steps 1–5</span>
+            </span>
+          </button>
+
+          <div class="flow-connector" [class.lit]="selectedPhase() === 'gate' || selectedPhase() === 'coding' || selectedPhase() === 'docs'">→</div>
+
+          <button type="button" role="tab"
+            class="flow-pill phase-gate"
+            [class.active]="selectedPhase() === 'gate'"
+            (click)="selectPhase('gate')"
+            aria-controls="phase-detail">
+            <span class="pill-icon">✋</span>
+            <span class="pill-body">
+              <span class="pill-label">Approval</span>
+              <span class="pill-steps">Human gate</span>
+            </span>
+          </button>
+
+          <div class="flow-connector" [class.lit]="selectedPhase() === 'coding' || selectedPhase() === 'docs'">→</div>
+
+          <button type="button" role="tab"
+            class="flow-pill phase-coding"
+            [class.active]="selectedPhase() === 'coding'"
+            (click)="selectPhase('coding')"
+            aria-controls="phase-detail">
+            <span class="pill-icon">⚡</span>
+            <span class="pill-body">
+              <span class="pill-label">Coding</span>
+              <span class="pill-steps">Steps 6–7</span>
+            </span>
+          </button>
+
+          <div class="flow-connector" [class.lit]="selectedPhase() === 'docs'">→</div>
+
+          <button type="button" role="tab"
+            class="flow-pill phase-docs"
+            [class.active]="selectedPhase() === 'docs'"
+            (click)="selectPhase('docs')"
+            aria-controls="phase-detail">
+            <span class="pill-icon">📄</span>
+            <span class="pill-body">
+              <span class="pill-label">Docs & PR</span>
+              <span class="pill-steps">Steps 8–9</span>
+            </span>
+          </button>
+
+          <div class="flow-connector flow-connector-end">→</div>
+          <div class="flow-pill-end">🚀 PR Ready</div>
+        </div>
+
+        <!-- Detail panel — animates on phase change -->
+        <div
+          id="phase-detail"
+          class="phase-detail"
+          role="tabpanel"
+          [attr.data-phase]="selectedPhase()"
+        >
+          <div class="phase-detail-inner">
+            <div class="phase-detail-header">
+              <span class="phase-detail-icon">{{ activePhase().icon }}</span>
+              <span class="phase-detail-name">{{ activePhase().label }}</span>
+            </div>
+            <p class="phase-detail-summary">{{ activePhase().summary }}</p>
+            <div class="phase-detail-steps">
+              @for (step of activePhase().steps; track step.num) {
+                <div class="phase-detail-step">
+                  <span class="phase-detail-step-num">{{ step.num }}</span>
+                  <div>
+                    <strong>{{ step.name }}</strong>
+                    <span>{{ step.desc }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Section 2: The 9 Steps ─────────────────────── -->
+    <section id="the-9-steps" class="guide-section">
+      <h2>The 9 Steps</h2>
+      <p>Every pipeline runs the same 9 steps. Steps 1–5 are AI planning; step 6–7 are Codex coding; steps 8–9 are AI documentation.</p>
+
+      <div class="steps-grid">
+        <div class="step-card phase-planning">
+          <span class="step-num">1</span>
+          <div class="step-info">
+            <span class="step-name">Kickoff</span>
+            <span class="step-who">gpt-4o-mini</span>
+            <span class="step-desc">Plain-English summary of what changes, why, and who is affected.</span>
+          </div>
+        </div>
+        <div class="step-card phase-planning">
+          <span class="step-num">2</span>
+          <div class="step-info">
+            <span class="step-name">Scope</span>
+            <span class="step-who">gpt-4o-mini</span>
+            <span class="step-desc">In scope, out of scope, and assumptions — the guardrails for the work.</span>
+          </div>
+        </div>
+        <div class="step-card phase-planning">
+          <span class="step-num">3</span>
+          <div class="step-info">
+            <span class="step-name">Impact Map</span>
+            <span class="step-who">gpt-4o-mini</span>
+            <span class="step-desc">Every component, service, route, and API contract affected by this change.</span>
+          </div>
+        </div>
+        <div class="step-card phase-planning">
+          <span class="step-num">4</span>
+          <div class="step-info">
+            <span class="step-name">Risk Pass</span>
+            <span class="step-who">gpt-4o-mini</span>
+            <span class="step-desc">Security, data integrity, performance, compliance, and regression risks — each rated LOW / MEDIUM / HIGH.</span>
+          </div>
+        </div>
+        <div class="step-card phase-planning">
+          <span class="step-num">5</span>
+          <div class="step-info">
+            <span class="step-name">Test Plan</span>
+            <span class="step-who">gpt-4o-mini</span>
+            <span class="step-desc">Jest unit tests, Playwright E2E tests, and regression targets. References your existing test structure.</span>
+          </div>
+        </div>
+
+        <div class="step-card phase-gate">
+          <span class="step-num">—</span>
+          <div class="step-info">
+            <span class="step-name">Approval Gate</span>
+            <span class="step-who">Human</span>
+            <span class="step-desc">Pipeline pauses here. Review, edit, or rerun any planning step before coding begins.</span>
+          </div>
+        </div>
+
+        <div class="step-card phase-coding">
+          <span class="step-num">6</span>
+          <div class="step-info">
+            <span class="step-name">Implement</span>
+            <span class="step-who">Codex CLI</span>
+            <span class="step-desc">Codex reads your codebase, applies changes within the agreed scope, and writes tests.</span>
+          </div>
+        </div>
+        <div class="step-card phase-coding">
+          <span class="step-num">7</span>
+          <div class="step-info">
+            <span class="step-name">Validate</span>
+            <span class="step-who">Codex CLI</span>
+            <span class="step-desc">Runs Jest unit tests and Playwright E2E tests. Reports results against the test plan.</span>
+          </div>
+        </div>
+
+        <div class="step-card phase-docs">
+          <span class="step-num">8</span>
+          <div class="step-info">
+            <span class="step-name">Document</span>
+            <span class="step-who">gpt-4o-mini</span>
+            <span class="step-desc">Jira comment, follow-up ticket suggestions, and notes for reviewers.</span>
+          </div>
+        </div>
+        <div class="step-card phase-docs">
+          <span class="step-num">9</span>
+          <div class="step-info">
+            <span class="step-name">PR Prep</span>
+            <span class="step-who">gpt-4o-mini</span>
+            <span class="step-desc">Complete PR title, structured markdown description, file change summary, and rollback plan.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-legend">
+        <span class="legend-item planning">Planning (1–5)</span>
+        <span class="legend-item gate">Approval Gate</span>
+        <span class="legend-item coding">Coding (6–7)</span>
+        <span class="legend-item docs">Documentation (8–9)</span>
+      </div>
+    </section>
+
+    <!-- ── Section 3: Starting a Pipeline ─────────────── -->
+    <section id="starting" class="guide-section">
+      <h2>Starting a Pipeline</h2>
+      <ol class="steps-list">
+        <li>
+          <span class="step-circle">1</span>
+          <div>
+            <strong>Go to the Sprint Board</strong>
+            <p>Click "Sprint Board" in the sidebar. Your current Jira sprint loads as a kanban view.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-circle">2</span>
+          <div>
+            <strong>Click a ticket card</strong>
+            <p>The ticket detail panel slides in on the right with the full description, subtasks, and comments.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-circle">3</span>
+          <div>
+            <strong>Click "Start Pipeline"</strong>
+            <p>A modal opens. "Start Work" (Codex only, no pipeline) is still available if you want to skip planning.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-circle">4</span>
+          <div>
+            <strong>Select a working directory</strong>
+            <p>Choose which local repo Codex should work in. Directories are configured in Settings.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-circle">5</span>
+          <div>
+            <strong>Click "Start"</strong>
+            <p>The pipeline starts immediately and you're redirected to the Pipeline view.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-circle">6</span>
+          <div>
+            <strong>Watch steps 1–5 run</strong>
+            <p>Each planning step completes in a few seconds. The full planning phase takes around 25 seconds.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="screenshot-placeholder">
+        <span>Sprint Board → ticket detail panel showing "Start Pipeline" and "Start Work" buttons</span>
+      </div>
+    </section>
+
+    <!-- ── Section 4: Approval Gate ───────────────────── -->
+    <section id="approval-gate" class="guide-section">
+      <h2>The Approval Gate</h2>
+      <p>
+        After Step 5 completes, the pipeline pauses at the Approval Gate. No code is written until
+        you click approve. The pipeline will wait indefinitely — come back in an hour, a day, or a
+        week and it'll be right where you left it.
+      </p>
+
+      <div class="callout callout-amber">
+        <strong>This is the human-in-the-loop checkpoint.</strong> Review the AI's plan carefully
+        before approving. Once you approve, Codex starts making changes to your codebase.
+      </div>
+
+      <h3>What you can do before approving</h3>
+      <ul class="feature-list">
+        <li>
+          <strong>Edit any step</strong> — click Edit on any completed step to open a textarea.
+          Modify the output directly (it's markdown). Click Save. Your edits are used as context
+          for Codex in Step 6.
+        </li>
+        <li>
+          <strong>Rerun a step</strong> — if a step's output is poor, click Rerun to regenerate
+          it from scratch. The step re-fetches the ticket from Jira and runs fresh.
+        </li>
+        <li>
+          <strong>Skip a step</strong> — mark a step as skipped if it's not relevant (e.g., Risk Pass
+          for a simple copy change). Skipped steps are excluded from the Codex context.
+        </li>
+      </ul>
+
+      <div class="screenshot-placeholder">
+        <span>Pipeline view at Approval Gate — showing the dashed gate section with "Approve Plan &amp; Start Coding" button</span>
+      </div>
+    </section>
+
+    <!-- ── Section 5: While Codex is Working ──────────── -->
+    <section id="while-coding" class="guide-section">
+      <h2>While Codex is Working</h2>
+      <p>
+        Steps 6 and 7 use the Codex CLI rather than the OpenAI API. Codex runs as a local subprocess,
+        reads your actual codebase, and makes targeted changes.
+      </p>
+      <ul class="feature-list">
+        <li>
+          <strong>Step 6 — Implement:</strong> Codex receives the full context from steps 1–5
+          as a structured prompt. It reads the files listed in the impact map, implements changes
+          within the agreed scope, and writes or updates tests.
+        </li>
+        <li>
+          <strong>Step 7 — Validate:</strong> Codex resumes the same thread (no fresh context
+          lost) and runs <code>npm test</code> (Jest) and <code>npx playwright test</code> if
+          Playwright is configured. Results are reported against each item in the test plan.
+        </li>
+        <li>
+          <strong>Validation failures don't abort:</strong> If Step 7 fails, it's marked as failed
+          but the pipeline continues to Steps 8–9. You still get the documentation and PR description.
+        </li>
+        <li>
+          <strong>You can check in:</strong> Go to Active Tasks to see the Codex task, then click
+          "Check In" to view the full conversation thread in real time.
+        </li>
+      </ul>
+
+      <div class="callout callout-info">
+        Steps 6 and 7 can take several minutes depending on the size of the change. The pipeline
+        view polls every 3 seconds — no need to refresh.
+      </div>
+    </section>
+
+    <!-- ── Section 6: What You Get ────────────────────── -->
+    <section id="what-you-get" class="guide-section">
+      <h2>What You Get at the End</h2>
+
+      <div class="output-cards">
+        <div class="output-card">
+          <div class="output-card-header">Step 8 — Document</div>
+          <ul>
+            <li>Jira comment ready to paste, summarising what was done</li>
+            <li>Follow-up ticket suggestions for deferred work</li>
+            <li>Notes for reviewers about decisions made during implementation</li>
+          </ul>
+        </div>
+        <div class="output-card">
+          <div class="output-card-header">Step 9 — PR Prep</div>
+          <ul>
+            <li>PR title in <code>feat(DD-XXX): description</code> format</li>
+            <li>Full markdown PR description: What, Why, How, Testing, Risks</li>
+            <li>File change summary with rationale per file</li>
+            <li>Rollback plan</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>
+        The <strong>"Copy PR Description"</strong> button on Step 9 copies the full output to your
+        clipboard. Paste it directly into your Bitbucket or GitHub PR.
+      </p>
+    </section>
+
+    <!-- ── Section 7: Tips ────────────────────────────── -->
+    <section id="tips" class="guide-section">
+      <h2>Tips</h2>
+      <ul class="tips-list">
+        <li>Steps 1–5 take around 25 seconds total. Grab a coffee, then come back to review.</li>
+        <li>Edit step outputs to add context the AI missed — especially the Scope and Impact Map before approving.</li>
+        <li>Skip irrelevant steps (e.g. Risk Pass for a simple label change) to keep Codex context focused.</li>
+        <li>The pipeline view auto-polls every 3 seconds. No need to refresh.</li>
+        <li>Multiple pipelines can run simultaneously — one per ticket.</li>
+        <li>"Start Work" still exists on the ticket panel if you want Codex without the planning phase.</li>
+        <li>Completed pipelines are saved in the <strong>Pipelines</strong> history view for 30 days.</li>
+        <li>Kanban cards show a mini progress bar when an active pipeline exists for that ticket.</li>
+        <li>Cost is approximately $0.01–0.02 per pipeline (planning + doc steps via gpt-4o-mini).</li>
+      </ul>
+    </section>
+
+    <!-- ── Section 8: Under the Hood (collapsible) ────── -->
+    <section id="under-the-hood" class="guide-section">
+      <h2>
+        <button type="button" class="accordion-toggle" (click)="toggleUnderHood()" [attr.aria-expanded]="underHoodOpen()">
+          Under the Hood
+          <span class="accordion-icon">{{ underHoodOpen() ? '▲' : '▼' }}</span>
+        </button>
+      </h2>
+
+      @if (underHoodOpen()) {
+        <div class="accordion-body">
+          <p>For developers who want to understand the internals.</p>
+
+          <h3>Services</h3>
+          <ul class="feature-list">
+            <li><strong>Listener (port 4000):</strong> TypeScript + Fastify 5. Manages all Jira, Codex, and pipeline operations. Persists tasks and pipeline steps to SQLite (<code>tasks.db</code>).</li>
+            <li><strong>Dashboard (port 4200):</strong> Angular 20, standalone components, signal-based reactivity. Polls the listener every 3–10 seconds depending on view.</li>
+            <li><strong>VPS Agent (port 8000, optional):</strong> Python + FastAPI, runs on a remote VPS, handles Telegram bot interactions and can trigger Jira queries.</li>
+          </ul>
+
+          <h3>Codex App Server</h3>
+          <p>
+            The listener spawns a single persistent <code>codex app-server</code> subprocess on startup.
+            Communication is via JSONL over stdio (a JSON-RPC-style protocol). Threads are started,
+            resumed, and read via this subprocess. Each Codex task gets its own thread; Step 7
+            resumes the same thread as Step 6 so Codex has full implementation context when validating.
+          </p>
+
+          <h3>OpenAI usage</h3>
+          <p>
+            Steps 1–5 and 8–9 call OpenAI directly via <code>fetch</code> with <code>gpt-4o-mini</code>,
+            <code>temperature: 0</code>, <code>max_tokens: 1500</code>. Each step builds on
+            the output of previous steps as context. Total cost per pipeline: approximately $0.01–0.02.
+          </p>
+
+          <h3>Approval gate mechanism</h3>
+          <p>
+            After Step 5, the background async function parks on a <code>Promise</code> whose
+            <code>resolve</code> is stored in a <code>Map&lt;taskId, fn&gt;</code>. The
+            <code>POST /pipeline/:taskId/approve</code> endpoint calls that resolve function,
+            unblocking the background process. The pipeline resumes from exactly where it stopped.
+          </p>
+
+          <!-- Architecture diagram -->
+          <div class="arch-diagram" aria-label="Architecture diagram">
+            <div class="arch-box frontend">Dashboard<br><span>:4200</span></div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-box listener">Listener<br><span>:4000</span></div>
+            <div class="arch-lines">
+              <div class="arch-line">
+                <div class="arch-arrow">→</div>
+                <div class="arch-box external">Codex App Server</div>
+              </div>
+              <div class="arch-line">
+                <div class="arch-arrow">→</div>
+                <div class="arch-box external">Jira REST API</div>
+              </div>
+              <div class="arch-line">
+                <div class="arch-arrow">→</div>
+                <div class="arch-box external">OpenAI API</div>
+              </div>
+              <div class="arch-line">
+                <div class="arch-arrow">→</div>
+                <div class="arch-box external">SQLite (tasks.db)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </section>
+
+    <!-- ── Section 9: Setup ───────────────────────────── -->
+    <section id="setup" class="guide-section">
+      <h2>Setup for New Developers</h2>
+      <p>Full setup instructions are in the <strong>repository README</strong>. Quick reference:</p>
+
+      <div class="prereqs-grid">
+        <div class="prereq-card">
+          <div class="prereq-icon">📦</div>
+          <div class="prereq-name">Node.js 18+</div>
+          <div class="prereq-note">Recommend nvm</div>
+        </div>
+        <div class="prereq-card">
+          <div class="prereq-icon">🅰️</div>
+          <div class="prereq-name">Angular CLI 20</div>
+          <div class="prereq-note">npm i -g @angular/cli</div>
+        </div>
+        <div class="prereq-card">
+          <div class="prereq-icon">🤖</div>
+          <div class="prereq-name">Codex CLI</div>
+          <div class="prereq-note">npm i -g @openai/codex</div>
+        </div>
+        <div class="prereq-card">
+          <div class="prereq-icon">🔑</div>
+          <div class="prereq-name">Jira API token</div>
+          <div class="prereq-note">id.atlassian.com</div>
+        </div>
+        <div class="prereq-card">
+          <div class="prereq-icon">🔮</div>
+          <div class="prereq-name">OpenAI API key</div>
+          <div class="prereq-note">platform.openai.com</div>
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block-label">Backend</div>
+        <pre><code>cd niesta-listener-ts
+npm install
+cp .env.example .env   # fill in Jira + OpenAI credentials
+npm run dev            # starts on port 4000</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block-label">Frontend</div>
+        <pre><code>cd dashboard
+npm install
+ng serve               # starts on port 4200</code></pre>
+      </div>
+
+      <div class="callout callout-info">
+        No VPS or SSH access is needed. The VPS agent and Telegram bot are optional and only needed
+        if you want Telegram notifications.
+      </div>
+    </section>
+
+  </main>
+</div>

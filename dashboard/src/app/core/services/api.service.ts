@@ -230,11 +230,112 @@ export class ApiService {
       .pipe(catchError(() => of(null)));
   }
 
+  // ── Pipeline ──────────────────────────────────────────────────────────────
+
+  startPipeline(ticketKey: string, cwd: string): Observable<{ taskId: string } | null> {
+    return this.http
+      .post<{ taskId: string }>(`${this.listener()}/pipeline/start`, {
+        ticket_key: ticketKey,
+        cwd,
+      })
+      .pipe(catchError(() => of(null)));
+  }
+
+  getPipeline(taskId: string): Observable<Pipeline | null> {
+    return this.http
+      .get<Pipeline>(`${this.listener()}/pipeline/${taskId}`)
+      .pipe(catchError(() => of(null)));
+  }
+
+  approveStep(taskId: string, stepNumber: number): Observable<unknown> {
+    return this.http
+      .post(`${this.listener()}/pipeline/${taskId}/approve`, { step_number: stepNumber })
+      .pipe(catchError(() => of(null)));
+  }
+
+  editStep(taskId: string, stepNumber: number, output: string): Observable<unknown> {
+    return this.http
+      .post(`${this.listener()}/pipeline/${taskId}/edit`, { step_number: stepNumber, output })
+      .pipe(catchError(() => of(null)));
+  }
+
+  skipStep(taskId: string, stepNumber: number): Observable<unknown> {
+    return this.http
+      .post(`${this.listener()}/pipeline/${taskId}/skip`, { step_number: stepNumber })
+      .pipe(catchError(() => of(null)));
+  }
+
+  rerunStep(taskId: string, stepNumber: number): Observable<unknown> {
+    return this.http
+      .post(`${this.listener()}/pipeline/${taskId}/rerun`, { step_number: stepNumber })
+      .pipe(catchError(() => of(null)));
+  }
+
+  deletePipeline(taskId: string): Observable<{ deleted: string } | null> {
+    return this.http
+      .delete<{ deleted: string }>(`${this.listener()}/pipeline/${taskId}`)
+      .pipe(catchError(() => of(null)));
+  }
+
+  getActivePipelines(): Observable<Pipeline[] | null> {
+    return this.http
+      .get<{ pipelines: Pipeline[] }>(`${this.listener()}/pipeline/active`)
+      .pipe(
+        map((r) => r.pipelines ?? []),
+        catchError(() => of(null))
+      );
+  }
+
+  getPipelineHistory(): Observable<Pipeline[] | null> {
+    return this.http
+      .get<{ pipelines: Pipeline[] }>(`${this.listener()}/pipeline/history`)
+      .pipe(
+        map((r) => r.pipelines ?? []),
+        catchError(() => of(null))
+      );
+  }
+
   deleteSession(sessionId: string): Observable<{ deleted: string } | null> {
     return this.http
       .delete<{ deleted: string }>(`${this.listener()}/sessions/${sessionId}`)
       .pipe(catchError(() => of(null)));
   }
+}
+
+export interface PipelineStep {
+  id: number;
+  task_id: string;
+  step_number: number;
+  step_name: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'approved';
+  output: string;
+  context: string;
+  started_at: number | null;
+  completed_at: number | null;
+  approved_by: string | null;
+  approved_at: number | null;
+}
+
+export interface PipelineTask {
+  task_id: string;
+  thread_id: string;
+  turn_id: string;
+  ticket_key: string | null;
+  task: string;
+  cwd: string;
+  status: 'pipeline' | 'awaiting_approval' | 'running' | 'completed' | 'failed';
+  created_at: number;
+  started_at: number;
+  completed_at: number | null;
+  output: string;
+  error: string;
+}
+
+export interface Pipeline {
+  task: PipelineTask;
+  steps: PipelineStep[];
+  currentStep: number;
+  isComplete: boolean;
 }
 
 export interface ThreadItem {
